@@ -22,6 +22,9 @@ docker compose up --build
 - Sonde de vie : http://localhost:8000/healthz
 - Sonde de disponibilité (teste la base) : http://localhost:8000/readyz
 
+PostgreSQL écoute sur `127.0.0.1:15432` (et non 5432, pour ne pas entrer en
+conflit avec une installation locale). Accessible depuis la machine uniquement.
+
 ## Commandes utiles
 
 ```bash
