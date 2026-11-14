@@ -57,8 +57,25 @@ docs/
 
 ## Avancement
 
-- [x] **Sprint 1 — Socle** : dépôt, conteneurs, PostgreSQL, migrations, sondes, tests, intégration continue
-- [ ] **Sprint 2 — Identité & sécurité** : entreprise, utilisateurs, rôles, connexion, RBAC serveur, journal d'audit
-- [ ] **Sprint 3 — Référentiel** : articles, entrepôts, lots, tiers, import CSV
-- [ ] **Sprint 4 — Coquille d'interface** : React + Vite + TypeScript, connexion, navigation, base PWA
-- [ ] Modules métier : Stock, Production, Conditionnement, puis amont et aval
+Objectif : **noyau usine en service en 6 semaines** (stock, production,
+conditionnement, ventes). Trésorerie, commissions et mode hors-ligne suivent
+après la mise en service. Voir `docs/conventions.md` pour la répartition du
+travail entre les deux développeurs.
+
+| Semaine | Contenu | État |
+|---|---|---|
+| 1 | Socle technique | ✅ |
+| 1 | Identité, rôles, RBAC serveur, journal d'audit + mise en ligne | ⏳ |
+| 2 | Référentiel (articles, entrepôts, tiers) + portage de l'interface | — |
+| 3 | Stock : registre de mouvements, soldes, CMUP, inventaire d'ouverture | — |
+| 4 | Production : formules, ordres de fabrication, écarts + conditionnement | — |
+| 5 | Achats, ventes, livraisons + documents imprimables | — |
+| 6 | Trésorerie, commissions, recette, formation, bascule | — |
+
+**Dépendances côté client** — sans elles le planning glisse :
+
+| Attendu de la direction | Date limite |
+|---|---|
+| Matrice des droits validée | semaine 2 |
+| Inventaire physique d'ouverture | semaine 3 |
+| Formules de fabrication (dosages par produit) | semaine 3 |
