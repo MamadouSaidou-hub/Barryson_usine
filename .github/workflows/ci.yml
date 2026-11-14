@@ -1,0 +1,56 @@
+name: Integration continue
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: barryson
+          POSTGRES_PASSWORD: barryson
+          POSTGRES_DB: barryson_test
+        options: >-
+          --health-cmd "pg_isready -U barryson"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: barryson
+      POSTGRES_PASSWORD: barryson
+      POSTGRES_DB: barryson_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dependances
+        working-directory: backend
+        run: pip install -r requirements-dev.txt
+
+      - name: Controle qualite du code
+        working-directory: backend
+        run: ruff check .
+
+      - name: Appliquer les migrations
+        working-directory: backend
+        run: alembic upgrade head
+
+      - name: Tests
+        working-directory: backend
+        run: pytest -q

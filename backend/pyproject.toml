@@ -1,0 +1,15 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+# Le dossier local "alembic/" ferait passer le paquet alembic pour du code
+# interne : on le declare explicitement comme dependance externe.
+known-third-party = ["alembic"]
