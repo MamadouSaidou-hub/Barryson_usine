@@ -72,10 +72,20 @@ travail entre les deux développeurs.
 | 5 | Achats, ventes, livraisons + documents imprimables | — |
 | 6 | Trésorerie, commissions, recette, formation, bascule | — |
 
-**Dépendances côté client** — sans elles le planning glisse :
+Le détail métier (stock 3 niveaux, identification lot/bobine, calcul de
+prévision BSG, circuit Doctor Rewinder, rôles et circuit de validation) est
+posé dans `docs/metier/regles-gestion-usine.md`, à partir du cahier des
+charges fonctionnel transmis par la direction le 2026-11-16. C'est la
+référence qui prévaut sur les hypothèses du prototype.
+
+**Dépendances côté client** — sans elles le planning glisse (liste détaillée
+en fin de `docs/metier/regles-gestion-usine.md`, §9) :
 
 | Attendu de la direction | Date limite |
 |---|---|
-| Matrice des droits validée | semaine 2 |
+| Nomenclature des matières premières/semi-finis + unités de gestion | semaine 2 |
+| Recettes de fabrication colles et tubes papier (rendements) | semaine 3 — toujours manquant, point le plus fragile |
+| Pièces par carton par modèle + règles de conversion poids/métrage/pièces | semaine 3 |
+| Matrice des droits et seuils de validation (achats, dépenses, ajustements) | semaine 2 |
 | Inventaire physique d'ouverture | semaine 3 |
-| Formules de fabrication (dosages par produit) | semaine 3 |
+| Décision sur le module ventes/commerciaux (voir écart signalé §7 du doc métier) | semaine 2 |
