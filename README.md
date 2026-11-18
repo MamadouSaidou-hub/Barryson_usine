@@ -51,8 +51,10 @@ backend/
   alembic/         migrations de schéma versionnées
   tests/
 docs/
-  architecture.md  principes et dettes corrigées
-  decisions/       décisions d'architecture et leurs conséquences
+  architecture.md               principes et dettes corrigées
+  cahier-des-charges-technique.md  modèle de données, machines à états, RBAC, formules — la cible à coder
+  decisions/                    décisions d'architecture et leurs conséquences
+  metier/                       cahier des charges fonctionnel officiel et points ouverts
 ```
 
 ## Avancement
