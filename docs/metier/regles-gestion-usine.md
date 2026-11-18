@@ -1,44 +1,108 @@
-# Règles de gestion de l'usine — d'après le cahier des charges fonctionnel
+# Règles de gestion de l'usine — cahier des charges officiel
 
-Source : document de cadrage fonctionnel transmis par la direction (Saal Multi
-Services), reçu le 2026-11-16. Ce document est la **référence métier qui
-prévaut** sur les hypothèses posées dans le prototype ; en cas de divergence,
-c'est lui qui gagne.
+Source : « GROUPE BARRYSON SARL — Cahier des charges — Logiciel de gestion
+intégré de l'usine », v1, préparé par Saal Multi Services, reçu le
+2026-11-18. Ce document **remplace** la version précédente (document de
+cadrage du 2026-11-16) comme référence métier : il est plus détaillé et
+formalisé, soumis à validation DG. En cas de divergence avec le code ou les
+autres docs du dépôt, c'est lui qui prévaut, sauf mention contraire validée
+avec la direction.
 
-## 1. Les trois niveaux de stock
+Les durées indicatives du plan de réalisation du cahier des charges (section
+20 de la source) ne sont **pas reprises ici** : le planning réel du projet
+est celui de `README.md` (6 semaines, noyau usine) et `docs/architecture.md`,
+construit avec l'équipe à deux développeurs.
 
-| Niveau | Contenu | Alimente |
+## 1. Objectifs et périmètre
+
+Objectifs du projet (ce qui définit « fini ») :
+- vue DG globale et temps réel sur tous les modules, opérations, stocks,
+  résultats et validations ;
+- **le module production est le cœur du système, prioritaire** — ordres de
+  fabrication, prévisions, résultats réels, défauts, pertes, Doctor Rewinder ;
+- traçabilité complète de la bobine reçue au carton vendu ;
+- circuits de validation + séparation stricte saisie/validation ;
+- suppression des écarts non expliqués entre stock théorique et stock réel.
+
+Indicateurs de réussite explicites : tous les mouvements de stock tracés et
+justifiés ; écart prévision/réel visible pour chaque OF ; cockpit DG à jour
+sans ressaisie ; aucune opération sensible sans auteur, date, quantité, motif.
+
+**Inclus** : administration/sécurité, référentiels, achats/fournisseurs,
+stocks 3 niveaux, production, Doctor Rewinder, ventes/commandes, suivi
+commercial, synthèses financières, RH, tableaux de bord, journal d'audit.
+
+**Exclus de la v1** : comptabilité générale détaillée (reste dans Sage ou
+équivalent, synthèses seulement) ; comptes utilisateurs pour les commerciaux
+(ils remontent via le directeur commercial) ; paie complète (seuls les
+éléments variables sont suivis).
+
+## 2. Principes directeurs (non négociables)
+
+a. Trois niveaux de stock distincts et liés, un article = un seul niveau.
+b. Stock = somme des mouvements validés, **jamais de modification directe
+   d'un solde** — toute correction passe par un mouvement ou ajustement
+   autorisé.
+c. Prévisions théoriques calculées par le logiciel, résultats réels saisis
+   par l'utilisateur, écart mesuré automatiquement.
+d. **Séparation saisie/validation : l'auteur d'une opération ne peut pas la
+   valider lui-même.** Règle technique à appliquer, pas juste UI.
+e. Chaque opération sensible conserve auteur, date/heure, quantités, motif,
+   statut, valideur, pièces justificatives.
+f. Accès transversal du DG à tous les modules et tableaux de bord.
+g. Paramétrage sans développement des modèles, seuils, unités, délégations,
+   par un administrateur habilité.
+h. Interface entièrement en français, vocabulaire usine.
+
+## 3. Organisation et profils d'accès (matrice officielle)
+
+| Profil | Consultation | Saisie | Validation |
+|---|---|---|---|
+| Directeur général | Tous modules, tous tableaux de bord, journal d'audit, jusqu'à l'opération d'origine | Aucune obligatoire | Achats, dépenses, transferts de fonds, ajustements de stock, sorties exceptionnelles, entrées directes de produits finis, engagements commerciaux, selon seuils |
+| Chef de production | Production, Doctor Rewinder, stocks | Fiches modèles, OF, demandes de matières | Résultats de fabrication, clôture des OF, traitement Doctor Rewinder |
+| Directeur commercial | Clients, commandes, ventes, dispo PF, créances, tableaux de bord commerciaux | Clients, commandes, ventes terrain, livraisons, objectifs | Conditions commerciales, dans la limite de ses délégations |
+| Responsable stock et approvisionnement | Stocks 3 niveaux, OF ouverts, alertes | Réceptions, packing lists, mouvements, inventaires, demandes d'achat, entrées PF | Contrôle des réceptions, exécution des sorties déjà validées |
+| Comptable | Ventes, créances, achats, synthèses financières | Synthèses caisse/banque, rapprochements, échanges Sage | Aucune — exécute les paiements déjà autorisés |
+| Responsable RH | Dossiers personnel, effectifs, présences | Dossiers, présences, congés, éléments variables de paie | Aucune — mises à jour sensibles validées par le DG |
+| Administrateur (nouveau, technique) | Paramètres et journal technique, **sans accès aux données salariales** | Utilisateurs, rôles, paramètres, sauvegardes | Aucune |
+| Commerciaux | — | — | **Pas de compte en v1**, remontée papier vers le directeur commercial |
+
+Ce tableau remplace celui du prototype et celui du document de cadrage
+précédent. Point confirmé définitivement (ne plus redemander) : pas de compte
+commercial en v1, c'est dans le plan d'évolution (section 10 ci-dessous).
+
+## 4. Architecture fonctionnelle — modules et priorité
+
+| Code | Module | Priorité |
 |---|---|---|
-| 1 — Matières premières | Papier gris-gris, colle liquide, papier logo (liste à compléter) | Fabrication des mandrins longs |
-| 2 — Semi-finis | Mandrins longs, paniers de pièces découpées, bobines BOPP, tubes PVC électriques, plastiques d'emballage, étiquettes de départ, colles papier, rouleaux d'aluminium | Fabrication des produits finis |
-| 3 — Produits finis | Rubans BSG (simple jaune/gold/kaki, imprimé), colle papier, colle électrique, tubes papier, classés par gamme/dimension/conditionnement | Vente |
+| M01 | Administration, sécurité, journal d'audit | Haute |
+| M02 | Référentiels : articles, unités, moules, modèles, clients, fournisseurs | Haute |
+| M03 | Fournisseurs et achats | Haute |
+| M04 | Stock matières premières | Haute |
+| M05 | Stock produits semi-finis, bobines BOPP, transformations | Haute |
+| M06 | Production : ordres, prévisions, résultats | **Critique** |
+| M07 | Doctor Rewinder et rectification | **Critique** |
+| M08 | Stock produits finis | Haute |
+| M09 | Ventes, commandes et livraisons | Haute |
+| M10 | Suivi commercial terrain | Moyenne |
+| M11 | Finances et échange comptable | Moyenne |
+| M12 | Ressources humaines | Moyenne |
+| M13 | Tableaux de bord et cockpit DG | **Critique** |
 
-Règle de transformation clé : **seuls les mandrins longs** alimentent les
-paniers de pièces découpées (par découpe) ; ils peuvent aussi aller
-directement en fabrication de colle papier. Les autres semi-finis sont
-consommés selon la nomenclature du produit fini — nomenclature qui reste à
-obtenir (voir §9).
+Cet ordre de priorité confirme le découpage déjà posé dans
+`docs/architecture.md` (socle → identité → référentiel → stock → production).
+M06/M07/M13 sont critiques : à traiter en premier une fois l'identité (M01)
+posée.
 
-## 2. Identification des bobines — règle à respecter dans le schéma
+## 5. Module Production (M06) — détail à coder
 
-Une bobine = **(numéro de lot, numéro de bobine)**. La bobine n°1 du lot 1 et
-la bobine n°1 du lot 2 sont deux enregistrements distincts. Ne jamais utiliser
-le seul numéro de bobine comme clé.
+### 5.1 Fiche de modèle de ruban
 
-Champs par bobine : lot, numéro bobine (donné par le fournisseur), poids (kg),
-métrage initial (m), couleur/finition (jaune transparent, clair transparent,
-gold transparent, kaki simple ou imprimé), impression (couleur rouge/noir/bleu
-+ module 45/48/70 mm si imprimée), documents liés (packing list, facture, bon
-de réception).
-
-Une bobine peut servir à **plusieurs séances/modèles** : conserver
-l'historique de chaque utilisation (métrage engagé à chaque séance) ; tant
-qu'elle n'est pas terminée son statut est `entamé, présente` — pas de
-métrage/poids restant exigé (le client a tranché : pas fiable à mesurer). Le
-métrage initial reste visible pour historique mais jamais présenté comme
-disponible.
-
-## 3. Paramètres des modèles BSG (fiche produit — valeurs communiquées)
+Minimum : famille, nom du modèle, largeur, longueur de rouleau, pièces par
+tour, pièces par carton, finition/couleur, moule/outillage, nomenclature des
+semi-finis consommés. **Paramétrable et modifiable par un utilisateur
+habilité, avec historique des versions** — donc une table versionnée, pas un
+simple update en place.
 
 | Largeur | Pièces par tour |
 |---|---|
@@ -47,129 +111,346 @@ disponible.
 | 55 mm | 23 |
 | 70 mm | 18 |
 
-Chaque modèle a aussi : longueur de rouleau, nombre de pièces par carton
-(valeur par modèle — à compléter, voir §9). Exemple donné : BSG 30, largeur
-45 mm, longueur 25 m.
+Rubans imprimés : couleur d'impression (rouge/noir/bleu) + module (45/48/70).
+Finitions jaune transparent, transparent clair, or transparent, kaki simple :
+même processus, la couleur dépend de la bobine sélectionnée.
 
-## 4. Calcul de prévision avant production (RG à coder telle quelle)
+### 5.2 Cycle de vie d'un ordre de fabrication (machine à états à implémenter telle quelle)
 
-Entrée : métrage réellement enregistré sur la bobine sélectionnée (jamais une
-constante fixe de 4000 m).
+| Statut | Déclenché par | Intervenant |
+|---|---|---|
+| Brouillon | Sélection famille/modèle/lot/bobine/moule/métrage engagé | Chef de production |
+| Soumis | Prévision calculée + demande de matières envoyée | Chef de production |
+| Matières validées | Sortie de stock validée, matière remise à la production | Responsable stock |
+| En cours | Fabrication lancée | Production |
+| Résultat saisi | Saisie du rapport papier opérateur | Agent habilité |
+| Résultat validé | Contrôle de cohérence + validation | Chef de production |
+| Clôturé | Entrée en stock de produits finis générée | Responsable stock |
+| Annulé | Motif obligatoire | DG ou délégataire |
+
+### 5.3 Prévision automatique (RG, déjà vérifiée sur l'exemple chiffré)
+
+Calcul sur le **métrage propre réel de la bobine sélectionnée**, jamais une
+valeur standard :
 
 ```
-tours_complets    = floor(metrage_engage / longueur_modele)
+tours_complets    = floor(metrage_engage / longueur_rouleau)
 pieces_theoriques = tours_complets * pieces_par_tour
 cartons_complets  = floor(pieces_theoriques / pieces_par_carton)
 pieces_restantes  = pieces_theoriques - (cartons_complets * pieces_par_carton)
 ```
 
-Vérifié sur l'exemple du document (BSG 30, 25 m, 28 p/tour, 90 p/carton) :
-3900 m → 156 tours → 4368 pièces → 48 cartons + 48 restantes. Ce triplet sert
-de cas de test de non-régression pour la fonction.
+Cas de test (BSG 30, rouleau 25 m, 28 p/tour, 90 p/carton) :
+3900 m → 156 tours → 4368 pièces → 48 cartons + 48 restantes
+4000 m → 160 tours → 4480 pièces → 49 cartons + 70 restantes
+4100 m → 164 tours → 4592 pièces → 51 cartons + 2 restantes
 
-## 5. Résultat réel de fabrication (saisi après coup, depuis un rapport papier)
+### 5.4 Résultat réel — règle de calcul et contrôle de cohérence
 
-Par ordre de fabrication + modèle + bobine, on saisit :
+Saisi par OF + modèle + bobine : tours totaux effectués (y compris
+défectueux), tours entièrement défectueux, pièces défectueuses
+supplémentaires (sans double comptage), pièces envoyées au Doctor Rewinder,
+pertes définitives. Le logiciel calcule :
 
-- nombre total de tours effectués (y compris défectueux)
-- nombre de tours entièrement défectueux
-- pièces défectueuses supplémentaires (sans double comptage avec les tours
-  défectueux — le logiciel doit **détecter et signaler** ce double comptage)
-- quantités envoyées au Doctor Rewinder
-- quantités en perte définitive
-- quantités bonnes obtenues
+```
+pieces_brutes       = tours_totaux * pieces_par_tour
+pieces_non_conformes = (tours_defectueux * pieces_par_tour) + pieces_defectueuses_supp
+# contrôle de cohérence obligatoire :
+#   pieces_non_conformes DOIT ETRE EGAL A (doctor_rewinder + pertes_definitives)
+#   sinon -> signaler double comptage ou omission, bloquer la validation
+pieces_conformes    = pieces_brutes - pieces_non_conformes
+cartons_complets    = floor(pieces_conformes / pieces_par_carton)
+pieces_restantes    = pieces_conformes - (cartons_complets * pieces_par_carton)
+ecart               = pieces_conformes - pieces_theoriques        # quantité et %
+rendement           = pieces_conformes / pieces_theoriques
+```
 
-Le système calcule : pièces bonnes → cartons complets + pièces restantes, et
-l'écart vs la prévision du §4.
+Note du cahier des charges : « cette règle de calcul sera confirmée en
+atelier avec le chef de production » — donc à vérifier avec lui avant de la
+figer en tests de non-régression, même si la formule ci-dessus est déjà
+cohérente avec le reste du document.
 
-### Doctor Rewinder (atelier de rectification)
+### 5.5 Bobines utilisées en plusieurs séances
 
-Les pièces envoyées là-bas sont un **encours**, ni perte définitive ni
-produit fini disponible — état intermédiaire à modéliser explicitement (pas
-juste un statut sur le produit fini). Après traitement : quantités récupérées
-/ non récupérées, par modèle et métrage, en gardant le lien OF + bobine + lot.
+Identifiant interne = **(lot, numéro fournisseur)** — jamais le numéro de
+bobine seul, deux lots différents peuvent avoir le même numéro fournisseur.
+Historique de chaque utilisation + métrage engagé à chaque séance conservés.
+Bobine non épuisée → statut `entamée, présente`, sans obligation de saisir
+poids/métrage/emplacement restant (décision client : pas mesurable de façon
+fiable). Métrage initial visible pour historique seulement, jamais présenté
+comme disponible. **Prévu en évolution** : option paramétrable pour activer
+la mesure du métrage restant plus tard — ne pas fermer le schéma, prévoir le
+champ mais pas l'UI v1.
 
-## 6. Entrée en stock de produits finis — deux voies distinctes
+### 5.6 Mandrins, colles papier, tubes papier
 
-1. **Depuis la fabrication** : OF clôturé/validé → quantités réelles
-   conditionnées transférées, rapprochées de l'OF et des consommations
-   semi-finis.
-2. **Entrée directe sans fabrication** (stock initial au démarrage, ou
-   régularisation d'inventaire) : saisie référence + nb cartons + pièces/
-   carton + motif → système calcule la quantité totale. **Doit être validée
-   par un responsable habilité, distinct de la personne qui a saisi**
-   (séparation des tâches obligatoire — RG non négociable, à vérifier côté
-   serveur, pas seulement masquée à l'écran).
+Mandrins longs = papier gris-gris + colle liquide + papier logo/blanc. Ils
+alimentent les paniers de pièces découpées (par découpe) et peuvent aller
+directement en fabrication de colle papier. **Recettes de la colle papier et
+des tubes papier toujours à documenter** — c'est désormais une fiche à
+remplir par le DG (voir `fiche-collecte-infos-manquantes-Barryson.docx`,
+déjà transmise), le cahier des charges officiel le confirme explicitement
+(section 19 : « voir fiche finale d'informations à compléter fournie par le
+DG »).
 
-## 7. Rôles et accès (remplace la matrice du prototype)
+### 5.7 Fonctions complémentaires attendues
 
-| Rôle | Accès logiciel | Points clés |
-|---|---|---|
-| Directeur général | Vue consolidée tous modules, validation des opérations sensibles | seuils de validation à définir (§8) |
-| Chef de production | Module production, OF, demandes de matières, saisie/validation résultats, encours Doctor Rewinder | ne modifie pas les mouvements de stock déjà validés |
-| Directeur commercial | Clients, commandes, ventes, suivi commerciaux, dispo produits finis | **saisit lui-même** les ventes terrain remontées par fiche papier |
-| Responsable stock et approvisionnement | Les 3 niveaux de stock, réceptions, lots/bobines, packing lists, demandes, inventaires, alertes | exécute les sorties seulement après validation |
-| Comptable | Données financières autorisées, synthèses, rapprochements | écritures détaillées restent dans Sage (ou autre), pas dans ce logiciel |
-| Responsable RH (nouveau rôle, absent du prototype) | Dossiers personnel, recrutement, contrats, absences, congés, éléments de paie | confidentialité renforcée sur les données salariales |
-| Commerciaux | **Aucun compte** dans la version initiale | transmettent une fiche papier quotidienne au directeur commercial, qui saisit |
+Planification par commandes/prévisions/disponibilités avec charge par moule ;
+alertes (écart de rendement au-delà d'un seuil, taux de défauts anormal,
+bobine entamée inactive depuis N jours) ; impression OF / bon de sortie /
+fiche de résultat calquée sur le rapport papier ; analyse des écarts et
+rendement par modèle/largeur/longueur/finition/bobine/lot/période.
 
-Écart important avec le prototype actuel : on avait donné aux commerciaux une
-gestion dédiée façon « CRM » avec commission automatique. Le cahier des
-charges dit l'inverse — pas de compte, remontée papier saisie par le
-directeur commercial. À trancher avec le DG avant de coder le module ventes
-(voir question posée dans le message qui accompagne ce document).
+## 6. Module Doctor Rewinder (M07)
 
-## 8. Circuit de validation (proposition du document, à faire valider par la DG)
+Encours de rectification — **ni perte définitive ni produit fini
+disponible**, un état intermédiaire à modéliser explicitement (table dédiée,
+pas un statut sur le produit fini). Enregistre : envois (OF, bobine, lot,
+modèle, métrage, quantité) et retours. Après traitement : quantités
+récupérées (par modèle/métrage, lien OF+bobine+lot conservé, entrent en
+stock PF **après validation**) vs non récupérables (pertes définitives).
+Indicateurs : encours en cours, taux de récupération, délai de traitement,
+ancienneté des encours.
+
+## 7. Stocks à trois niveaux (détail)
+
+### 7.1 Niveau 1 — matières premières
+
+Papier gris-gris, colle liquide, papier logo/blanc. Réception enregistrée
+avec article, unité de gestion, quantité, date, fournisseur, justificatif,
+lot si applicable. Consommation enregistrée à la fabrication des mandrins
+longs.
+
+### 7.2 Niveau 2 — semi-finis et bobines BOPP
+
+Contenu : mandrins longs, paniers de pièces découpées par dimension, bobines
+BOPP, tubes PVC électriques, plastiques d'emballage rubans, plastiques PVC,
+étiquettes de départ, colles papier, rouleaux d'aluminium, **cartons vides**
+(nouveau dans cette version).
+
+Bobine BOPP = un enregistrement par (lot du conteneur, numéro fournisseur de
+la bobine). Champs : lot, numéro fournisseur, poids (kg), métrage propre (m),
+couleur/finition, impression+module si imprimée, documents (packing list,
+facture, bon de réception).
+
+**Import de packing list Excel** : aperçu avant intégration, détection des
+doublons, contrôle de cohérence (poids/métrage/finition), rapport d'erreurs,
+**validation par le responsable stock avant création des bobines**. Chaque
+transformation (consommation → production) enregistrée avec lien vers l'OF
+et les articles d'origine.
+
+### 7.3 Niveau 3 — produits finis
+
+Suivi par référence, modèle, dimension, finition/couleur, module, pièces/
+carton, cartons disponibles. Deux voies d'entrée :
+- **depuis la fabrication** : OF clôturé → quantités réelles conditionnées
+  transférées, rapprochées de l'OF et des consommations semi-finis ;
+- **entrée directe sans OF** (stock de démarrage ou écart d'inventaire) :
+  référence + nb cartons + pièces/carton + motif. **Validée par un
+  responsable distinct du saisissant**, obligatoire. Conserve saisissant,
+  valideur, date/heure, produit, quantités, motif, pièce justificative si
+  possible. Ces entrées sont **distinguées dans tous les états** (donc un
+  flag/type de mouvement dédié, pas juste un motif texte).
+
+### 7.4 Mouvements, inventaires, contrôles
+
+Types de mouvement : réception, entrée, demande de sortie, sortie,
+consommation, transformation, transfert, retour, ajustement, **rebut ou
+destruction** (nouveau), inventaire.
+
+- Unités par article (kg, m, rouleau, pièce, panier, carton) + règles de
+  conversion paramétrables.
+- **Réservations** pour OF et commandes : `stock_disponible = stock_physique - reservations`.
+  C'est un concept absent du prototype et du document précédent — à intégrer
+  au modèle de données stock dès le sprint stock.
+- Seuils min/max/alerte, prévision de rupture, proposition de demande
+  d'achat.
+- Inventaires tournants et généraux, comptage, écarts, ajustements soumis à
+  validation DG ou délégataire.
+- Méthode de valorisation et coût de revient : **toujours à définir**.
+
+## 8. Références de conditionnement (connu vs à confirmer)
+
+Table confirmée par la direction :
+
+| Famille | Largeur | Longueur | Pièces/carton |
+|---|---|---|---|
+| BOPP | 45 mm | 25 m | 90 |
+| BOPP | 45 mm | 50 m | 72 |
+| BOPP | 45 mm | 100 m | 72 |
+| BOPP | 48 mm | 200 m | 36 |
+| BOPP | 55 mm | 150 m | 36 |
+| PVC électrique | 17,15 mm *(à confirmer)* | 6 yards *(cité)* | 500 *(annoncé, à confirmer)* |
+
+**Encore manquant** (mentionné mais pièces/carton non établi) : BOPP 45 mm
+sur 150 m et 1000 m ; BOPP 55 mm sur 200 m et 1000 m ; BOPP 70 mm sur 120 m et
+1000 m ; rubans de masquage 24 mm sur 18 m et 50 mm sur 20 m. À ajouter à la
+fiche de collecte si elle n'est pas déjà couverte.
+
+## 9. Achats et approvisionnement (M03)
+
+Fiche fournisseur : coordonnées, conditions de paiement, délais, historique
+achats/litiges, évaluation. Circuit : besoin → demande d'achat → validation
+DG/délégataire selon seuil → commande → réception contrôlée → entrée stock →
+rapprochement facture/paiement. Suivi des commandes en cours, retards,
+réceptions partielles, écarts qté/qualité. Suivi des conteneurs : date
+d'arrivée, documents, bobines reçues, statut de contrôle.
+
+## 10. Ventes et suivi commercial (M09/M10)
+
+**Circuit interentreprises** : commande directe à l'usine, enregistrée par le
+directeur commercial, qui vérifie dispo, confirme conditions, suit
+préparation/livraison/règlement. Une commande non satisfaite peut générer un
+besoin de production visible du chef de production (lien M09→M06 à prévoir).
+
+**Circuit terrain** : commerciaux vendent, remontent par fiche papier au
+directeur commercial (ou agent habilité) qui saisit : date, commercial,
+client/point de vente, localité, références vendues, quantités, prix, mode
+de règlement, sommes encaissées, crédits, observations.
+
+Fonctions : fichier clients (segment, zone, conditions, plafond d'encours),
+tarifs/remises, devis, commandes, livraisons, retours/réclamations,
+créances/relances, objectifs par commercial/zone/client/produit, rapports
+périodiques. **Le stock PF diminue à la livraison validée** (pas à la
+commande).
+
+Évolution prévue (hors v1, à ne pas construire maintenant) : application
+mobile ou saisie hors ligne pour les commerciaux, accès direct à la
+plateforme.
+
+## 11. Finances et échange comptable (M11)
+
+Comptabilité détaillée hors périmètre (Sage ou équivalent), ce module ne
+gère que les synthèses : caisse/banque, transferts entre comptes/caisses
+(validation DG obligatoire), dépenses, encaissements clients, créances,
+dettes fournisseurs, rapprochement ventes/encaissements. **Mode d'échange
+encore ouvert** (import/export/interface/saisie manuelle) — dans tous les
+cas, import/export Excel normalisé prévu comme filet de sécurité.
+
+## 12. Ressources humaines (M12)
+
+Effectif confirmé : **~14 salariés, horaire 8h–17h du lundi au samedi**.
+Dossier employé (identité, poste, affectation, contrat, pièces),
+recrutements, présences, absences, congés, effectifs par service, éléments
+variables de paie. Données salariales confidentielles : accès RH + DG
+uniquement. DG reçoit une synthèse (effectifs, absentéisme, masse salariale).
+Hors périmètre 6-semaines noyau usine, mais le dimensionnement (14 personnes)
+est désormais connu pour plus tard.
+
+## 13. Cockpit Direction générale (M13)
+
+Écran d'accueil DG : indicateurs clés, alertes du jour, opérations en attente
+de sa validation, **accès au détail par clic jusqu'à l'opération d'origine**
+(lot, bobine, ordre, mouvement, pièce justificative) — donc un drill-down
+complet, pas juste des agrégats.
+
+| Domaine | Indicateurs |
+|---|---|
+| Production (prioritaire) | OF ouverts/en cours/clôturés, prod prévue vs réelle, rendement par modèle, défauts/pertes, encours Doctor Rewinder + taux récup, consommation par lot/bobine |
+| Stocks | 3 niveaux, ruptures prévues, bobines entamées, entrées directes, écarts d'inventaire |
+| Achats | commandes en cours, retards, dépenses par fournisseur, conteneurs attendus |
+| Ventes | CA par segment/produit/zone/commercial, commandes en attente, livraisons, objectifs atteints |
+| Finances | caisses, banques, encaissements, décaissements, transferts, créances âgées, dettes |
+| RH | effectif, absences, congés, synthèse paie |
+| Contrôle | opérations en attente de validation, ajustements, anomalies, actions correctives |
+
+Chaque responsable a son propre tableau de bord. Fonctions communes : filtres
+période, comparaison période précédente, graphiques, exports Excel/PDF,
+rapports automatiques, alertes paramétrables.
+
+## 14. Circuit de validation (version officielle)
 
 | Opération | Initiateur | Validation | Exécution |
 |---|---|---|---|
-| Approvisionnement | Responsable stock | DG ou délégataire | Responsable stock + comptable selon étape |
-| Réception matières | Responsable stock | Contrôle documentaire/quantitatif | Responsable stock |
+| Approvisionnement | Responsable stock | DG ou délégataire, selon seuil | Responsable stock, comptable |
+| Réception de matières | Responsable stock | Contrôle documentaire + quantitatif | Responsable stock |
 | Sortie pour production | Chef de production | Selon procédure approuvée | Responsable stock |
-| Résultat de fabrication | Production | Chef de production | Entrée stock produits finis |
-| Ajustement de stock | Responsable stock | DG ou délégataire | Responsable stock après autorisation |
-| Commande client | Client / commercial | Selon conditions commerciales | Service commercial |
-| Dépense ou transfert | Service demandeur / comptable | DG selon délégation | Comptable ou personne habilitée |
+| Résultat de fabrication | Production | Chef de production | Stock, pour entrée PF |
+| Entrée directe de PF | Responsable stock | Responsable habilité distinct du saisissant | Responsable stock |
+| Ajustement de stock | Responsable stock | DG ou délégataire | Responsable stock |
+| Commande client | Client ou commercial | Conditions commerciales | Service commercial |
+| Dépense ou transfert | Demandeur ou comptable | DG selon délégation | Comptable |
 | Mise à jour RH sensible | Responsable RH | DG selon nature | Responsable RH |
 
-Les seuils financiers et délégataires exacts restent à préciser par la DG.
+Seuils financiers, délégations, remplaçants en cas d'absence du DG : toujours
+paramétrables et à préciser (déjà demandé dans la fiche de collecte).
 
-## 9. Ce qui manque encore pour pouvoir coder (à demander à la direction)
+## 15. Documents générés par le logiciel
 
-Bloquant pour le schéma stock/production (sprint 3) :
-- Liste complète des matières premières/composants/colles/emballages et
-  leurs unités de gestion.
-- Recettes et nomenclatures de fabrication des colles et tubes papier
-  (rendements inclus) — **toujours pas fournies**, c'est le point le plus
-  fragile du planning.
-- Nombre de pièces par carton pour chaque modèle (on n'a que les pièces/tour
-  par largeur).
-- Règles de conversion poids ↔ métrage ↔ rouleaux ↔ pièces ↔ cartons.
-- Méthode de valorisation des stocks (coût de revient).
+| Document | Module | Contrôle principal |
+|---|---|---|
+| Bon de commande | Achats | Validation selon seuil |
+| Bon de réception | Stock matières/semi-finis | Concordance commande/documents/quantités |
+| Bon d'enlèvement de matière | Stock + production | Lien avec un OF |
+| Demande et bon de sortie | Stock | Quantité, demandeur, valideur, date |
+| Bon de retour | Stock | Quantité, état matière |
+| Fiche de production | Production | Cohérence avec la prévision |
+| Bon d'entrée de produits finis | Stock PF | Concordance avec la production validée |
+| Procès-verbal d'ajustement | Stock | Motif, justificatif, autorisation |
+| Bon de livraison | Ventes | Concordance avec la commande |
+| Sortie de caisse et reçu | Finances | Autorisation et justificatif |
+| Fiche de présence | RH | Contrôle par le responsable RH |
 
-Bloquant pour les droits et la trésorerie (sprint 2 et au-delà) :
-- Seuils de validation (achats, dépenses, transferts, ajustements) et la
-  liste des délégataires/remplaçants.
-- Mode d'échange avec l'outil comptable (Sage ou autre) : import/export/API/
-  saisie manuelle de synthèse.
+Numérotation automatique et rattachement à l'opération d'origine sur
+l'ensemble de ces documents.
 
-Non bloquant pour le noyau usine, mais à obtenir avant le module concerné :
-- Fichier clients/fournisseurs/commerciaux/zones, tarifs, remises, limites
-  d'encours.
-- Traitement des rebuts/retours/produits non conformes/destructions.
-- Règles RH (horaires, présences, paie) — module RH entièrement hors du
-  périmètre « noyau usine » des 6 semaines.
-- Modèles des fiches papier actuelles (production, stock, reporting
-  commercial) — utiles pour calquer les écrans de saisie sur ce que les
-  équipes connaissent déjà.
+## 16. Exigences non fonctionnelles (à ne pas perdre de vue)
 
-## 10. Scénarios de recette (à transformer en tests, sprint par sprint)
+- **Sécurité** : mots de passe robustes, verrouillage après échecs répétés,
+  droits par profil et par module, chiffrement des échanges, protection
+  renforcée données financières/salariales.
+- **Disponibilité** — décision d'architecture encore présentée comme ouverte
+  dans le cahier des charges (« serveur local à l'usine avec accès distant
+  sécurisé pour la Direction » vs « solution hébergée avec mode dégradé »).
+  **Déjà tranché de notre côté avec le DG** : VPS auto-géré + Docker, hybride
+  cloud/hors-ligne (voir `docs/decisions/0001-socle-technique.md` et
+  `0003-strategie-hors-ligne.md`). Pas une nouvelle question à poser — à
+  juste reconfirmer en séance de cadrage que ce choix reste valable compte
+  tenu des coupures électricité/connexion mentionnées ici.
+- **Sauvegardes** : automatiques quotidiennes, copie hors site, test de
+  restauration périodique, plan de reprise.
+- **Performance** : écrans courants < 3 s pour au moins 10 utilisateurs
+  simultanés, marge d'évolution.
+- **Ergonomie** : parcours courts, vocabulaire usine, aide contextuelle,
+  utilisable sur ordinateur et tablette, cockpit consultable sur téléphone.
+- **Évolutivité** : architecture modulaire pour ajouter des modules (qualité,
+  maintenance, accès commerciaux) sans refonte.
+- **Maintenabilité** : documentation technique, code versionné,
+  environnements test/production séparés — déjà en place.
 
-Le document impose que ces cas soient rejoués avant mise en service :
-réception d'un conteneur + import packing list ; deux bobines portant le même
-numéro dans deux lots différents (doit rester deux enregistrements
-distincts) ; création d'un OF et calcul prévisionnel ; saisie d'un résultat
-réel avec détection de double comptage de défauts ; traitement Doctor
-Rewinder ; bobine utilisée sur plusieurs séances ; entrée de produits finis
-(les deux voies) ; commande interentreprises ; vente terrain remontée par un
-commercial ; rapprochement financier.
+## 17. Modèle de données — entités principales (cahier des charges)
+
+Utilisateur, rôle, article, unité et conversion, lot, bobine, fournisseur,
+commande d'achat, réception, mouvement de stock, ordre de fabrication,
+séance de production, résultat, dossier Doctor Rewinder, modèle de ruban,
+moule, client, commande client, livraison, vente de terrain, encaissement,
+compte de caisse/banque, employé, pièce justificative, journal d'audit.
+
+Reprise des données prévue : articles, fournisseurs, clients, stock initial
+(inventaire de départ validé par le DG), bobines en cours, OF ouverts, soldes
+de créances.
+
+## 18. Ce qui reste à obtenir du DG
+
+Le cahier des charges officiel renvoie explicitement à la fiche déjà
+transmise (`fiche-collecte-infos-manquantes-Barryson.docx`). À compléter
+dans cette fiche ou à ajouter si absent :
+- recettes colle papier et tubes papier (rendements inclus) — toujours le
+  point le plus bloquant ;
+- pièces par carton pour les références BOPP/masquage encore incomplètes
+  (§8 ci-dessus) et confirmation des dimensions PVC électrique ;
+- méthode de valorisation des stocks / coût de revient ;
+- seuils financiers de validation et délégataires/remplaçants ;
+- mode d'échange avec Sage (import/export/interface/saisie) ;
+- inventaire physique d'ouverture, validé par le DG.
+
+## 19. Recette — scénarios à transformer en tests
+
+Réception d'un conteneur + import packing list ; deux bobines de même numéro
+fournisseur dans des lots différents (doivent rester deux enregistrements) ;
+cycle complet d'un OF (brouillon → clôturé) avec calcul prévisionnel et
+saisie du résultat réel (y compris déclenchement du contrôle de cohérence
+§5.4) ; traitement Doctor Rewinder ; bobine utilisée en plusieurs séances ;
+entrée PF par les deux voies ; commande interentreprises ; vente terrain
+remontée par un commercial ; rapprochement financier ; **tests de droits pour
+chaque profil, y compris la vue complète du DG**.

@@ -72,14 +72,15 @@ travail entre les deux développeurs.
 | 5 | Achats, ventes, livraisons + documents imprimables | — |
 | 6 | Trésorerie, commissions, recette, formation, bascule | — |
 
-Le détail métier (stock 3 niveaux, identification lot/bobine, calcul de
-prévision BSG, circuit Doctor Rewinder, rôles et circuit de validation) est
-posé dans `docs/metier/regles-gestion-usine.md`, à partir du cahier des
-charges fonctionnel transmis par la direction le 2026-11-16. C'est la
-référence qui prévaut sur les hypothèses du prototype.
+Le détail métier (modules M01-M13, matrice de droits, cycle de vie d'un
+ordre de fabrication, calcul de prévision BSG, circuit Doctor Rewinder,
+circuit de validation, documents à générer) est posé dans
+`docs/metier/regles-gestion-usine.md`, à partir du cahier des charges
+officiel v1 transmis par la direction le 2026-11-18 (Saal Multi Services).
+C'est la référence qui prévaut sur les hypothèses du prototype.
 
 **Dépendances côté client** — sans elles le planning glisse (liste détaillée
-en fin de `docs/metier/regles-gestion-usine.md`, §9) :
+en fin de `docs/metier/regles-gestion-usine.md`, §18) :
 
 | Attendu de la direction | Date limite |
 |---|---|
