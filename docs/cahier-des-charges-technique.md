@@ -364,6 +364,74 @@ d'unicité (ex. une seule validation par mouvement), pas par un verrou de
 ligne. Testé sous charge : 8 réservations simultanées sur 10 rouleaux → 3
 acceptées, aucune surréservation ; 8 validations simultanées → 1 seule.
 
+### 5.7 Approvisionnement : commande, réception, contrôle (M03) — livré le 2026-11-20
+
+Circuit : **commande préparée → soumise → validée par le DG → passée au
+fournisseur → marchandise arrivée → contrôle de conformité → entrée en stock des
+seules quantités acceptées.** Rien n'entre en stock à l'arrivée : seul le
+contrôle crée des mouvements.
+
+| Méthode | Chemin | Droit | Rôle |
+|---|---|---|---|
+| GET | `/api/commandes-achat` (`?statut=&fournisseur_id=&en_attente_marchandise=`) | `achats.consulter` | `en_attente_marchandise` : conteneurs attendus, plus proches d'abord |
+| GET | `/api/commandes-achat/{id}` | `achats.consulter` | lignes (commandé, reçu accepté, solde, montant), total, réceptions, historique |
+| POST / PUT | `/api/commandes-achat`, `/{id}` | `achats.saisir` (resp. stock) | création ; modification en brouillon (les lignes envoyées remplacent les anciennes) |
+| POST | `…/soumettre` | `achats.saisir` | brouillon → soumise |
+| POST | `…/valider`, `…/refuser` (`motif`) | `achats.valider` (DG) | soumise → validée / refusée |
+| POST | `…/commander` | `achats.saisir` | validée → commandée (+ référence proforma) |
+| POST | `…/annuler` (`motif`) | initiateur avant validation, DG ensuite | refusée si une réception attend son contrôle |
+| POST | `…/solder` (`motif`) | `achats.saisir` | partiellement reçue → clôturée (reliquat abandonné) |
+| POST | `…/receptions` | `stock.saisir` | la marchandise est arrivée : réception **en contrôle** |
+| GET | `/api/receptions-achat` (`?statut=&commande_id=&avec_ecarts=`), `/{id}` | `achats.consulter` | `avec_ecarts` : litiges (réserves ou refus) |
+| POST | `/api/receptions-achat/{id}/controle` | `stock.valider_reception` (resp. stock) | `acceptee` / `acceptee_avec_reserves` / `refusee` |
+
+**Bobines** : une réception de bobines s'appuie sur une packing list déjà
+analysée (`POST /api/imports-colisage`, §5.6) et rattachée à la réception. La
+quantité reçue vaut alors le nombre de bobines de la liste. Une packing
+list rattachée ne peut plus être validée ni annulée à part : seul le contrôle
+de sa réception la valide, ce qui supprime tout contournement du contrôle.
+Elle doit venir du même fournisseur et porter sur le même article que la
+ligne de commande, sans anomalie bloquante.
+
+**Contrôle de conformité** (documentaire puis quantitatif) :
+- `acceptee` : tout est conforme, documents compris ;
+- `acceptee_avec_reserves` : écart constaté (document manquant, quantité
+  réduite, bobine refusée). Chaque écart de quantité exige un motif, et un
+  commentaire d'ensemble est obligatoire ;
+- `refusee` : rien n'entre en stock, commentaire obligatoire ; la packing
+  list est libérée pour être refaite.
+Une bobine refusée (`bobines_refusees`, par numéro fournisseur) n'est jamais
+créée. La décision est **définitive** : la base refuse de rouvrir une
+réception ou ses lignes, même au propriétaire du schéma.
+
+**Suivi** : le reçu et le solde d'une ligne ne comptent que les quantités
+**acceptées**. La commande passe seule à `partiellement_recue` puis `recue`.
+Une réception dont la quantité dépasse le solde est signalée par un
+avertissement lisible avant le contrôle (jamais bloquant en soi), de même
+que les anomalies de la packing list ou une finition différente de celle
+commandée.
+
+**Séparation** : celui qui prépare la commande ne peut pas la valider
+(contrôlé par le service **et** par une contrainte de la base).
+Les lignes d'une commande sont **figées en base** dès la soumission.
+
+Choix à confirmer avec le DG :
+- **Seuils de validation** : tant qu'ils ne sont pas fixés (fiche de
+  collecte), **toute commande passe par le DG**, quel que soit son montant ;
+- **Devise** : la commande est dans une devise (USD, EUR, CNY, GNF) ; les
+  prix sont facultatifs et ne sont pas convertis en GNF. La valorisation du
+  stock reste à définir ;
+- **Documents imprimables** (bon de commande, bon de réception) : l'API
+  fournit tout le contenu structuré, la mise en page revient à l'interface ;
+- **Rapprochement facture / paiement** : relève du module finances (M11),
+  non fait ;
+- la réception directe hors commande (`POST /api/receptions`, import seul)
+  reste disponible pour reprendre le **stock existant** à la mise en service.
+
+Testé sous charge réelle : 6 validations DG simultanées → 1 ; 6 contrôles
+simultanés de la même réception → 1 seul, la marchandise entre en stock une
+fois (5 000 tubes, 5 bobines).
+
 ## 6. Production (M06) — le cœur du système
 
 ### 6.1 Fiche de modèle de ruban (`modeles_ruban`), versionnée

@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.core.db import engine
 from app.core.erreurs import installer_gestionnaire
 from app.core.securite_http import installer_securite_http
+from app.modules.achats import routes as achats
 from app.modules.identite import routes as identite
 from app.modules.production import routes as production
 from app.modules.referentiel import routes as referentiel
@@ -30,6 +31,7 @@ app.include_router(identite.router)
 app.include_router(referentiel.router)
 app.include_router(stock.router)
 app.include_router(production.router)
+app.include_router(achats.router)
 
 
 @app.get("/healthz", tags=["Supervision"])
