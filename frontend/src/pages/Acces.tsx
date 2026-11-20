@@ -141,6 +141,7 @@ export function ConfigurerDoubleFacteur() {
   const { appliquer, deconnecter } = useAuth();
   const [config, setConfig] = useState<S["ConfigurationDoubleFacteur"] | null>(null);
   const [code, setCode] = useState("");
+  const [copiee, setCopiee] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
 
@@ -199,6 +200,20 @@ export function ConfigurerDoubleFacteur() {
             « basé sur l'heure », puis recopiez cette clé :
           </p>
           <div className="secret">{groupes}</div>
+          <div className="actions">
+            <Bouton
+              type="button"
+              variante="secondaire"
+              onClick={() => {
+                navigator.clipboard
+                  ?.writeText(config.secret)
+                  .then(() => setCopiee(true))
+                  .catch(() => setCopiee(false));
+              }}
+            >
+              {copiee ? "Clé copiée ✓" : "Copier la clé"}
+            </Bouton>
+          </div>
           <Champ etiquette="Code affiché par l'application" aide="Cela confirme que la clé est bien enregistrée.">
             <Saisie
               value={code}

@@ -14,11 +14,18 @@ from sqlalchemy import select
 from app.core.audit import maintenant
 from app.core.config import get_settings
 from app.core.db import SessionLocal
+from app.donnees_demo import lignes_packing_list_102
+from app.modules.achats import models as _modeles_achats  # noqa: F401  (enregistre toutes les tables)
 from app.modules.identite import mots_de_passe
 from app.modules.identite.models import Entreprise, Utilisateur
+from app.modules.production import models as _modeles_production  # noqa: F401
 from app.modules.referentiel import service as referentiel
 from app.modules.referentiel.models import Article, Fournisseur, ModeleRuban, Moule
+from app.modules.stock import service as stock
+from app.modules.stock.schemas import ImportCreation
+from app.modules.stock.models import ImportColisage, Lot
 
+CONTENEUR_DEMO = "DEMO-CONTENEUR-102"
 MOT_DE_PASSE = "Lampe-Fleuve-Sable-81"
 ENTREPRISE = "Group BARRYSON Sarl"
 COMPTES = [
@@ -144,11 +151,46 @@ def main() -> int:
                 },
             )
 
+        lot_charge = _charger_conteneur(db, entreprise.id)
+
     print(f"Comptes créés : {', '.join(creees) or 'aucun (déjà présents)'}")
     print(f"Références chargées : {references}")
+    print(f"Conteneur réel : {'102 bobines chargées en stock' if lot_charge else 'déjà présent'}")
     print(f"\nMot de passe de tous les comptes de démonstration : {MOT_DE_PASSE}")
     print("Le DG et l'administrateur configureront leur double authentification à la première connexion.")
     return 0
+
+
+def _charger_conteneur(db, entreprise_id) -> bool:
+    """Entre en stock le premier conteneur reel (102 bobines) par le chemin normal : import, puis reception."""
+    if db.scalar(select(Lot.id).where(Lot.entreprise_id == entreprise_id, Lot.conteneur_reference == CONTENEUR_DEMO)):
+        return False
+    acteur = db.scalar(select(Utilisateur).where(Utilisateur.identifiant == "stock.demo"))
+    db.info.update(acteur_id=acteur.id)
+    jumbo = db.scalar(select(Article).where(Article.entreprise_id == entreprise_id, Article.code == "JUMBO-BOPP"))
+    fournisseur = db.scalar(
+        select(Fournisseur).where(Fournisseur.entreprise_id == entreprise_id, Fournisseur.code == "CHINE-DEMO")
+    )
+    # Reprise apres un echec : un brouillon deja cree pour ce conteneur est valide tel quel.
+    importation = db.scalar(
+        select(ImportColisage).where(
+            ImportColisage.entreprise_id == entreprise_id,
+            ImportColisage.conteneur_reference == CONTENEUR_DEMO,
+            ImportColisage.statut == "brouillon",
+        )
+    )
+    if importation is None:
+        # Meme validation de types que l'API (decimaux, references) : on ne contourne rien.
+        donnees = ImportCreation(
+            conteneur_reference=CONTENEUR_DEMO,
+            date_reception=maintenant().date(),
+            fournisseur_id=fournisseur.id,
+            article_id=jumbo.id,
+            lignes=lignes_packing_list_102(),
+        ).model_dump()
+        importation = stock.creer_import(db, acteur, donnees)
+    stock.valider_import(db, acteur, importation.id)
+    return True
 
 
 if __name__ == "__main__":

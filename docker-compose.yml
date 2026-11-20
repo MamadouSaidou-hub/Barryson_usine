@@ -43,6 +43,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-barryson}
       POSTGRES_APP_USER: ${POSTGRES_APP_USER:-barryson_app}
       POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-changeme_app}
+      # Second facteur : actif par defaut. Vide ([]) accepte uniquement en developpement.
+      ROLES_DOUBLE_FACTEUR: ${ROLES_DOUBLE_FACTEUR:-["dg","administrateur"]}
     volumes:
       # Rechargement a chaud en developpement.
       - ./backend:/app

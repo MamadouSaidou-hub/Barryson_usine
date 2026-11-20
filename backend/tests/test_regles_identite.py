@@ -141,7 +141,8 @@ def test_la_production_refuse_les_valeurs_par_defaut():
 
 
 _PROD = {"environment": "production", "secret_key": "k" * 40, "postgres_password": "fort-et-long",
-         "postgres_app_password": "autre-et-long", "hotes_autorises": ["erp.exemple.com"]}
+         "postgres_app_password": "autre-et-long", "hotes_autorises": ["erp.exemple.com"],
+         "roles_double_facteur": ["dg", "administrateur"]}
 
 
 def test_la_production_impose_le_cookie_securise_et_ferme_la_documentation():

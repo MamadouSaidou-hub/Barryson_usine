@@ -1,0 +1,103 @@
+numero_bobine;couleur;poids_net_kg;metrage_m;couleur_fournisseur;poids_brut_kg
+1;Gold transparent;251.6;4000;Golden01;254.6
+2;Gold transparent;252.6;4020;Golden01;255.6
+3;Gold transparent;251.6;4000;Golden01;254.6
+4;Gold transparent;251.8;4010;Golden01;254.8
+5;Gold transparent;251;4000;Golden01;254
+6;Gold transparent;251.4;4000;Golden01;254.4
+7;Gold transparent;251.4;4000;Golden01;254.4
+8;Gold transparent;252.6;4030;Golden01;255.6
+9;Gold transparent;251;4000;Golden01;254
+10;Gold transparent;250.8;4000;Golden01;253.8
+11;Gold transparent;251.8;4020;Golden01;254.8
+12;Gold transparent;251.8;4000;Golden01;254.8
+13;Gold transparent;251;4000;Golden01;254
+14;Gold transparent;248.8;3970;Golden01;251.8
+15;Gold transparent;254.2;4040;Golden01;257.2
+16;Gold transparent;252;4020;Golden01;255
+17;Gold transparent;254.4;4040;Golden01;257.4
+18;Gold transparent;252.2;4000;Golden01;255.2
+19;Gold transparent;252;4000;Golden01;255
+20;Gold transparent;251.2;4000;Golden01;254.2
+21;Gold transparent;252.6;4010;Golden01;255.6
+22;Gold transparent;251.8;4000;Golden01;254.8
+23;Gold transparent;255.2;4070;Golden01;258.2
+24;Gold transparent;251;4000;Golden01;254
+25;Gold transparent;250.8;4000;Golden01;253.8
+26;Gold transparent;247.6;3930;Golden01;250.6
+27;Gold transparent;251;4000;Golden01;254
+28;Gold transparent;249.2;3960;Golden01;252.2
+29;Gold transparent;251;4000;Golden01;254
+30;Gold transparent;251.8;4010;Golden01;254.8
+31;Gold transparent;251;4000;Golden01;254
+32;Gold transparent;252;4020;Golden01;255
+33;Gold transparent;251.2;4000;Golden01;254.2
+34;Gold transparent;254.4;4050;Golden01;257.4
+35;Gold transparent;252;4010;Golden01;255
+36;Gold transparent;251.6;4000;Golden01;254.6
+37;Gold transparent;252.8;4030;Golden01;255.8
+38;Gold transparent;252;4020;Golden01;255
+39;Gold transparent;251.6;4010;Golden01;254.6
+40;Gold transparent;251;4000;Golden01;254
+41;Gold transparent;253.2;4020;Golden03;256.2
+42;Gold transparent;254.8;4040;Golden03;257.8
+43;Gold transparent;252;4000;Golden03;255
+44;Gold transparent;253.8;4020;Golden03;256.8
+45;Gold transparent;253.4;4020;Golden03;256.4
+46;Gold transparent;252.6;4010;Golden03;255.6
+47;Gold transparent;252.2;4000;Golden03;255.2
+48;Gold transparent;252.2;4000;Golden03;255.2
+49;Gold transparent;252.4;4010;Golden03;255.4
+50;Gold transparent;254.4;4040;Golden03;257.4
+51;Gold transparent;252.2;4000;Golden03;255.2
+52;Gold transparent;252;4000;Golden03;255
+53;Gold transparent;254.2;4040;Golden03;257.2
+54;Gold transparent;252.2;4010;Golden03;255.2
+55;Gold transparent;251.6;4010;Golden03;254.6
+56;Gold transparent;252.2;4010;Golden03;255.2
+57;Gold transparent;240.2;3840;Golden03;243.2
+58;Gold transparent;245.6;3910;Golden03;248.6
+59;Gold transparent;245.6;3920;Golden03;248.6
+60;Gold transparent;254.8;4040;Golden03;257.8
+61;Jaune transparent;253.4;4030;Yellowish;256.4
+62;Jaune transparent;252.8;4020;Yellowish;255.8
+63;Jaune transparent;253;4020;Yellowish;256
+64;Jaune transparent;252.2;4020;Yellowish;255.2
+65;Jaune transparent;252;4010;Yellowish;255
+66;Jaune transparent;252.6;4020;Yellowish;255.6
+67;Jaune transparent;253.2;4030;Yellowish;256.2
+68;Jaune transparent;250.4;3980;Yellowish;253.4
+69;Jaune transparent;242.6;3870;Yellowish;245.6
+70;Jaune transparent;252.2;4010;Yellowish;255.2
+71;Jaune transparent;249.2;3970;Yellowish;252.2
+72;Jaune transparent;251;4000;Yellowish;254
+73;Jaune transparent;247.6;3970;Yellowish;250.6
+74;Jaune transparent;246.8;3960;Yellowish;249.8
+75;Jaune transparent;249.2;3990;Yellowish;252.2
+76;Jaune transparent;250.2;4010;Yellowish;253.2
+77;Jaune transparent;251;4020;Yellowish;254
+78;Jaune transparent;246.8;3950;Yellowish;249.8
+79;Jaune transparent;249.6;3990;Yellowish;252.6
+80;Jaune transparent;250.2;4010;Yellowish;253.2
+81;Clair transparent;252.4;4020;Clear White;255.4
+82;Clair transparent;253.2;4020;Clear White;256.2
+83;Clair transparent;252.6;4020;Clear White;255.6
+84;Clair transparent;255;4040;Clear White;258
+85;Clair transparent;252.6;4000;Clear White;255.6
+86;Clair transparent;253;4020;Clear White;256
+87;Clair transparent;254.2;4050;Clear White;257.2
+88;Clair transparent;251.8;4010;Clear White;254.8
+89;Clair transparent;253;4030;Clear White;256
+90;Clair transparent;253.8;4030;Clear White;256.8
+91;Clair transparent;252;4020;Clear White;255
+92;Clair transparent;253;4020;Clear White;256
+93;Clair transparent;252;4020;Clear White;255
+94;Clair transparent;252.2;4030;Clear White;255.2
+95;Clair transparent;245;3900;Clear White;248
+96;Kaki simple;247.6;3950;Brown;250.6
+97;Kaki simple;260.4;4140;Brown;263.4
+98;Kaki simple;254;4040;Brown;257
+99;Kaki simple;254.8;4050;Brown;257.8
+100;Kaki simple;253.8;4040;Brown;256.8
+101;Kaki simple;252.6;4020;Brown;255.6
+102;Kaki simple;253.4;4030;Brown;256.4
