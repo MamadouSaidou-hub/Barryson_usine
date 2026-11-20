@@ -130,3 +130,14 @@ class DelegationPublic(BaseModel):
     cree_le: datetime
     revoquee_le: datetime | None
     revoquee_par: uuid.UUID | None
+
+
+class EntreeAnnuaire(BaseModel):
+    """Nom et fonction seulement : de quoi afficher « validé par ... », rien de sensible."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nom: str
+    role: str
+    actif: bool
