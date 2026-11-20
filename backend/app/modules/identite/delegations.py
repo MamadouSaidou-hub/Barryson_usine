@@ -17,7 +17,7 @@ from app.core.config import get_settings
 from app.core.erreurs import DonneesInvalides, Introuvable, OperationInterdite
 from app.core.transactions import transactionnel
 from app.modules.identite.models import Delegation, Utilisateur
-from app.modules.identite.permissions import DELEGABLES, a_la_permission, permissions_du_role
+from app.modules.identite.permissions import DELEGABLES, a_la_permission, droits_couverts, permissions_du_role
 
 
 def delegations_actives(
@@ -45,17 +45,17 @@ def droit(db: Session, utilisateur: Utilisateur, permission: str) -> tuple[bool,
     """(autorise, delegation_id). Le droit propre au role prime ; la delegation n'intervient qu'a defaut."""
     if a_la_permission(utilisateur.role, permission):
         return True, None
-    if permission in DELEGABLES:
-        for delegation in delegations_actives(db, utilisateur):
-            if permission in delegation.permissions:
-                return True, delegation.id
+    for delegation in delegations_actives(db, utilisateur):
+        if permission in droits_couverts(delegation.permissions):
+            return True, delegation.id
     return False, None
 
 
 def permissions_effectives(db: Session, utilisateur: Utilisateur) -> tuple[list[str], list[str]]:
     """(toutes les permissions, dont celles qui viennent d'une delegation)."""
     propres = set(permissions_du_role(utilisateur.role))
-    deleguees = {p for d in delegations_actives(db, utilisateur) for p in d.permissions} - propres
+    couverts = {p for d in delegations_actives(db, utilisateur) for p in droits_couverts(d.permissions)}
+    deleguees = couverts - propres
     return sorted(propres | deleguees), sorted(deleguees)
 
 

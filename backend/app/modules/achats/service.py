@@ -562,6 +562,12 @@ def vue_lignes_reception(db: Session, reception: ReceptionAchat) -> list[dict[st
     return vue
 
 
+def _lisible(valeur: Decimal) -> str:
+    """6.000 -> 6 ; 2.500 -> 2.5 (jamais d'exposant, jamais de zeros inutiles)."""
+    texte = f"{valeur:f}"
+    return texte.rstrip("0").rstrip(".") if "." in texte else texte
+
+
 def avertissements_reception(
     db: Session, reception: ReceptionAchat, lignes: list[dict[str, Any]]
 ) -> list[str]:
@@ -570,8 +576,8 @@ def avertissements_reception(
     for ligne in lignes:
         if ligne["quantite_recue"] > ligne["solde_avant"]:
             notes.append(
-                f"{ligne['article_code']} : {ligne['quantite_recue']} reçu(s) pour un solde de "
-                f"{ligne['solde_avant']} sur la commande."
+                f"{ligne['article_code']} : {_lisible(ligne['quantite_recue'])} {ligne['unite']} "
+                f"reçu(s) pour un solde de {_lisible(ligne['solde_avant'])} sur la commande."
             )
     if reception.import_colisage_id:
         importation = db.get(ImportColisage, reception.import_colisage_id)

@@ -89,7 +89,8 @@ def test_seul_le_dg_designe_ou_revoque_un_delegataire(scene, role):
 
 
 def test_un_delegataire_ne_peut_pas_deleguer_a_son_tour(scene):
-    assert scene.deleguer(scene.commercial).status_code == 201
+    reponse = scene.deleguer(scene.commercial)
+    assert reponse.status_code == 201, reponse.text
     assert scene.deleguer(scene.comptable, profil="directeur_commercial").status_code == 403
 
 
@@ -163,7 +164,9 @@ def test_la_delegation_n_ouvre_que_les_droits_accordes(scene):
     commande = scene.commande_soumise()
     scene.deleguer(scene.commercial)
     moi = scene.appeler("directeur_commercial", "GET", "/api/auth/moi").json()
-    assert "achats.valider" in moi["permissions"] and moi["permissions_deleguees"] == ["achats.valider"]
+    assert "achats.valider" in moi["permissions"]
+    # Valider les achats emporte leur lecture, et rien d'autre.
+    assert moi["permissions_deleguees"] == ["achats.consulter", "achats.valider"]
     assert "stock.valider_ajustement" not in moi["permissions"]
     assert "utilisateurs.gerer" not in moi["permissions"]
     # Le delegue valide les achats mais n'a pas acquis les droits de saisie du responsable stock.
@@ -172,6 +175,27 @@ def test_la_delegation_n_ouvre_que_les_droits_accordes(scene):
     assert scene.appeler("directeur_commercial", "GET", "/api/audit").status_code == 403
     assert scene.appeler("directeur_commercial", "POST", "/api/delegations", json=_delegation(scene.comptable)
                          ).status_code == 403
+
+
+def test_valider_emporte_la_lecture_de_ce_qu_on_valide_et_rien_de_plus(scene):
+    """Sans cela, le delegataire recevrait « acces refuse » en ouvrant la commande qu'on lui demande de valider."""
+    commande = scene.commande_soumise()
+    assert scene.appeler("directeur_commercial", "GET", f"/api/commandes-achat/{commande['id']}").status_code == 403
+    scene.deleguer(scene.commercial)
+    detail = scene.appeler("directeur_commercial", "GET", f"/api/commandes-achat/{commande['id']}")
+    assert detail.status_code == 200 and detail.json()["numero"] == commande["numero"]
+    assert scene.appeler("directeur_commercial", "GET", "/api/fournisseurs").status_code == 200
+    moi = scene.appeler("directeur_commercial", "GET", "/api/auth/moi").json()
+    assert {"achats.valider", "achats.consulter"} <= set(moi["permissions_deleguees"])
+    # Ni saisie, ni administration, ni audit : la lecture impliquee ne concerne que les achats.
+    for chemin in ("/api/audit", "/api/utilisateurs", "/api/delegations"):
+        assert scene.appeler("directeur_commercial", "GET", chemin).status_code == 403, chemin
+    assert not {"achats.saisir", "finances.consulter", "audit.consulter"} & set(moi["permissions"])
+    assert set(moi["permissions_deleguees"]) == {"achats.consulter", "achats.valider"}
+    # Elle disparait avec la delegation.
+    delegation = scene.appeler("dg", "GET", "/api/delegations").json()[0]
+    scene.appeler("dg", "POST", f"/api/delegations/{delegation['id']}/revoquer")
+    assert scene.appeler("directeur_commercial", "GET", f"/api/commandes-achat/{commande['id']}").status_code == 403
 
 
 def test_un_delegataire_ne_valide_pas_sa_propre_commande(scene, creer_compte, base):
