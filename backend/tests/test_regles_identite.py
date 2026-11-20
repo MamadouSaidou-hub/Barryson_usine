@@ -37,7 +37,9 @@ def test_chaque_permission_accordee_existe_et_sert():
 def test_le_dg_consulte_tout_et_ne_saisit_rien():
     droits = matrice()["dg"]
     assert all(p in droits for p in CATALOGUE if p.endswith(".consulter"))
-    assert not any(p.endswith(".saisir") or p.endswith(".gerer") for p in droits)
+    assert not any(p.endswith(".saisir") for p in droits)
+    # Seule exception : designer ses delegataires, c'est un acte du DG, pas une saisie metier.
+    assert {p for p in droits if p.endswith(".gerer")} == {"delegations.gerer"}
 
 
 def test_l_administrateur_ne_voit_ni_la_paie_ni_l_audit_metier():

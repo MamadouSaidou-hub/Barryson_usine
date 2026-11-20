@@ -17,8 +17,9 @@ from sqlalchemy.orm import Session
 
 from app.core.audit import journaliser, maintenant
 from app.core.erreurs import Conflit, DonneesInvalides, Introuvable, OperationInterdite
+from app.modules.identite import delegations
 from app.modules.identite.models import Utilisateur
-from app.modules.identite.permissions import ConflitDeSeparation, a_la_permission, exiger_valideur_distinct
+from app.modules.identite.permissions import ConflitDeSeparation, exiger_valideur_distinct
 from app.modules.referentiel import service as referentiel
 from app.modules.referentiel.models import Article, Fournisseur
 from app.modules.stock.models import (
@@ -130,7 +131,8 @@ def valider_mouvement(db: Session, acteur: Utilisateur, mouvement_id: uuid.UUID,
     if permission is None:
         db.rollback()
         raise DonneesInvalides("Ce mouvement ne nécessite aucune validation.")
-    if not a_la_permission(acteur.role, permission):
+    autorise, delegation_id = delegations.droit(db, acteur, permission)
+    if not autorise:
         journaliser(db, "acces.refuse", apres={"permission": permission, "mouvement": str(mouvement_id)})
         db.commit()
         raise OperationInterdite("Accès refusé.")
@@ -145,7 +147,8 @@ def valider_mouvement(db: Session, acteur: Utilisateur, mouvement_id: uuid.UUID,
         db.rollback()
         raise Conflit("Ce mouvement a déjà été traité.")
     validation = ValidationMouvement(entreprise_id=acteur.entreprise_id, mouvement_id=mouvement.id,
-                                     decision=decision, valide_par=acteur.id, motif=motif)
+                                     decision=decision, valide_par=acteur.id, motif=motif,
+                                     delegation_id=delegation_id)
     db.add(validation)
     try:
         db.commit()

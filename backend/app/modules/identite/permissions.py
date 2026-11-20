@@ -41,6 +41,7 @@ CATALOGUE: dict[str, str] = {
     "journal_technique.consulter": "Lire le journal technique (connexions, erreurs)",
     "utilisateurs.consulter": "Voir les comptes utilisateurs",
     "utilisateurs.gerer": "Créer, modifier, désactiver un compte, réinitialiser un mot de passe",
+    "delegations.gerer": "Désigner et révoquer des délégataires pour les validations du DG",
     "parametres.consulter": "Voir les paramètres",
     "parametres.gerer": "Modifier les paramètres",
     "referentiels.consulter": "Articles, unités, moules",
@@ -88,6 +89,7 @@ _MATRICE: dict[str, frozenset[str]] = {
         "stock.valider_sortie_exceptionnelle",
         "stock.valider_entree_directe",
         "production.annuler",
+        "delegations.gerer",
         "achats.valider",
         "finances.valider",
         "ventes.valider_engagement",
@@ -122,6 +124,38 @@ _MATRICE: dict[str, frozenset[str]] = {
         "journal_technique.consulter",
     }),
 }
+
+
+# Validations que le DG peut confier a un delegataire pour une duree limitee. Rien d'autre ne se delegue :
+# ni la gestion des comptes, ni l'audit, ni la delegation elle-meme.
+DELEGABLES: frozenset[str] = frozenset({
+    "achats.valider",
+    "stock.valider_ajustement",
+    "stock.valider_sortie_exceptionnelle",
+    "stock.valider_entree_directe",
+    "finances.valider",
+    "ventes.valider_engagement",
+})
+
+
+# Valider suppose de pouvoir voir ce qu'on valide. Une delegation emporte donc, pour sa duree seulement,
+# la lecture correspondante : jamais de droit de saisie, ni de lecture d'un autre domaine.
+LECTURE_IMPLICITE: dict[str, frozenset[str]] = {
+    "achats.valider": frozenset({"achats.consulter"}),
+    "stock.valider_ajustement": frozenset({"stock.consulter", "referentiels.consulter"}),
+    "stock.valider_sortie_exceptionnelle": frozenset({"stock.consulter", "referentiels.consulter"}),
+    "stock.valider_entree_directe": frozenset({"stock.consulter", "referentiels.consulter"}),
+    "finances.valider": frozenset({"finances.consulter"}),
+    "ventes.valider_engagement": frozenset({"ventes.consulter", "clients.consulter"}),
+}
+
+
+def droits_couverts(permissions: list[str] | set[str]) -> set[str]:
+    """Les droits d'une delegation, plus la lecture qu'ils impliquent."""
+    couverts = set(permissions)
+    for permission in permissions:
+        couverts |= LECTURE_IMPLICITE.get(permission, frozenset())
+    return couverts
 
 
 def a_la_permission(role: str, permission: str) -> bool:

@@ -92,6 +92,10 @@ class CommandeAchat(Audite, Base):
     cree_le: Mapped[datetime] = _horodatage()
     valide_par: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("utilisateurs.id"))
     valide_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Renseigne quand un delegataire a valide au nom du DG.
+    valide_via_delegation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("delegations.id"))
+    # Taux du jour saisi a la commande : 1 unite de la devise = X GNF (facultatif).
+    taux_change_gnf: Mapped[Decimal | None] = mapped_column(Numeric(16, 4))
     commandee_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Motif d'un refus, d'une annulation ou du solde d'une commande partiellement livree.
     motif_decision: Mapped[str | None] = mapped_column(String(500))

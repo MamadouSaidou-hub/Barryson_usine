@@ -25,6 +25,7 @@ from app.modules.achats.models import (
     ReceptionAchat,
     TransitionCommande,
 )
+from app.modules.identite import delegations
 from app.modules.identite.models import Utilisateur
 from app.modules.identite.permissions import ConflitDeSeparation, a_la_permission, exiger_valideur_distinct
 from app.modules.referentiel import service as referentiel
@@ -237,6 +238,11 @@ def _verifier_lignes(db: Session, acteur: Utilisateur, lignes: list[dict[str, An
     return articles
 
 
+def _verifier_taux(devise: str, taux: Decimal | None) -> None:
+    if devise == "GNF" and taux is not None and taux != 1:
+        raise DonneesInvalides("Une commande en GNF n'a pas de taux de change.")
+
+
 def _fournisseur_actif(db: Session, acteur: Utilisateur, fournisseur_id: uuid.UUID) -> Fournisseur:
     fournisseur = referentiel.charger_ou_invalide(db, Fournisseur, acteur, fournisseur_id, "Fournisseur")
     if not fournisseur.actif:
@@ -257,6 +263,7 @@ def _inserer_lignes(db: Session, commande: CommandeAchat, lignes: list[dict[str,
 @transactionnel
 def creer(db: Session, acteur: Utilisateur, donnees: dict[str, Any]) -> CommandeAchat:
     _fournisseur_actif(db, acteur, donnees["fournisseur_id"])
+    _verifier_taux(donnees["devise"], donnees.get("taux_change_gnf"))
     lignes = donnees.pop("lignes")
     _verifier_lignes(db, acteur, lignes)
     commande = CommandeAchat(
@@ -293,6 +300,7 @@ def modifier(
     lignes = changements.pop("lignes", None)
     for champ, valeur in changements.items():
         setattr(commande, champ, valeur)
+    _verifier_taux(commande.devise, commande.taux_change_gnf)
     if lignes is not None:
         _verifier_lignes(db, acteur, lignes)
         for ancienne in lignes_de(db, commande.id):
@@ -313,8 +321,11 @@ def soumettre(db: Session, acteur: Utilisateur, commande_id: uuid.UUID) -> Comma
 
 
 @transactionnel
-def valider(db: Session, acteur: Utilisateur, commande_id: uuid.UUID) -> CommandeAchat:
-    """Le DG autorise la commande. Seuils non fixes : toute commande passe par lui."""
+def valider(
+    db: Session, acteur: Utilisateur, commande_id: uuid.UUID, delegation_id: uuid.UUID | None = None
+) -> CommandeAchat:
+    """Le DG, ou un delegataire qu'il a designe, autorise la commande. Seuils non fixes : toute commande
+    passe par l'un d'eux."""
     commande = charger(db, acteur, commande_id, verrou=True)
     # Avant tout changement d'etat : un refus ne doit laisser aucune trace autre que son journal.
     try:
@@ -327,6 +338,7 @@ def valider(db: Session, acteur: Utilisateur, commande_id: uuid.UUID) -> Command
         raise OperationInterdite(str(erreur)) from erreur
     _passer(db, commande, acteur, ("soumise",), "validee")
     commande.valide_par, commande.valide_le = acteur.id, maintenant()
+    commande.valide_via_delegation_id = delegation_id
     _commit(db)
     return commande
 
@@ -357,7 +369,7 @@ def commander(
 @transactionnel
 def annuler(db: Session, acteur: Utilisateur, commande_id: uuid.UUID, motif: str) -> CommandeAchat:
     peut_saisir = a_la_permission(acteur.role, "achats.saisir")
-    peut_valider = a_la_permission(acteur.role, "achats.valider")
+    peut_valider, _ = delegations.droit(db, acteur, "achats.valider")
     if not (peut_saisir or peut_valider):  # aucun droit sur les achats : on ne dit rien de la commande
         journaliser(db, "acces.refuse", apres={"permission": "achats.saisir", "commande": str(commande_id)})
         db.commit()
@@ -550,6 +562,12 @@ def vue_lignes_reception(db: Session, reception: ReceptionAchat) -> list[dict[st
     return vue
 
 
+def _lisible(valeur: Decimal) -> str:
+    """6.000 -> 6 ; 2.500 -> 2.5 (jamais d'exposant, jamais de zeros inutiles)."""
+    texte = f"{valeur:f}"
+    return texte.rstrip("0").rstrip(".") if "." in texte else texte
+
+
 def avertissements_reception(
     db: Session, reception: ReceptionAchat, lignes: list[dict[str, Any]]
 ) -> list[str]:
@@ -558,8 +576,8 @@ def avertissements_reception(
     for ligne in lignes:
         if ligne["quantite_recue"] > ligne["solde_avant"]:
             notes.append(
-                f"{ligne['article_code']} : {ligne['quantite_recue']} reçu(s) pour un solde de "
-                f"{ligne['solde_avant']} sur la commande."
+                f"{ligne['article_code']} : {_lisible(ligne['quantite_recue'])} {ligne['unite']} "
+                f"reçu(s) pour un solde de {_lisible(ligne['solde_avant'])} sur la commande."
             )
     if reception.import_colisage_id:
         importation = db.get(ImportColisage, reception.import_colisage_id)

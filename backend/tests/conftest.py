@@ -20,6 +20,15 @@ from app.main import app
 from app.modules.identite import mots_de_passe
 from app.modules.identite.models import Entreprise, Utilisateur
 
+# Les tests lisent aussi l'etat global (premier lot, premiere delegation...) : sur la base de
+# developpement, les donnees de demonstration les fausseraient. On exige donc une base dediee.
+if not get_settings().postgres_db.endswith("_test"):
+    pytest.exit(
+        "Les tests doivent tourner sur une base dediee (nom finissant par _test), pas sur la base de "
+        f"developpement ({get_settings().postgres_db}). Voir README : « Lancer les tests ».",
+        returncode=2,
+    )
+
 MOT_DE_PASSE = "Cheval-Correct-Agrafe-91"
 
 

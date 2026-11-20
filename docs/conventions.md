@@ -4,6 +4,13 @@ Projet mené **à deux développeurs**, échéance courte (noyau usine en servic
 6 semaines). Ces règles existent pour éviter les collisions et les
 re-travaux, pas pour faire de la cérémonie.
 
+> **Mise à jour 2026-11-20** : le projet est mené par **un seul développeur** ; la
+> seconde personne n'intervient que sur le **design** (identité visuelle,
+> maquettes). Le tableau ci-dessous est l'organisation initialement prévue ; la
+> « relecture croisée par le second développeur » n'a pas lieu. En pratique : une
+> branche par sujet, intégration continue verte obligatoire (tests, migrations,
+> scan de sécurité), puis fusion après validation de l'utilisateur.
+
 ## Répartition
 
 | Piste | Responsable | Contenu |

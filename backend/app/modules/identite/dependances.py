@@ -9,6 +9,7 @@ Le controle est fait ici, cote serveur, quel que soit ce qu'affiche l'interface.
 """
 
 import hmac
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated
@@ -19,9 +20,9 @@ from sqlalchemy.orm import Session
 from app.core.audit import journaliser
 from app.core.config import get_settings
 from app.core.db import get_db
-from app.modules.identite import service
+from app.modules.identite import delegations, service
 from app.modules.identite.models import SessionUtilisateur, Utilisateur
-from app.modules.identite.permissions import CATALOGUE, a_la_permission
+from app.modules.identite.permissions import CATALOGUE
 
 METHODES_SURES = frozenset({"GET", "HEAD", "OPTIONS"})
 ENTETE_CSRF = "X-CSRF-Token"
@@ -33,6 +34,8 @@ class Contexte:
     session: SessionUtilisateur
     jeton: str
     db: Session
+    # Renseigne quand l'action s'appuie sur une delegation du DG plutot que sur le role.
+    delegation_id: uuid.UUID | None = None
 
 
 def adresse_ip(request: Request) -> str | None:
@@ -83,7 +86,9 @@ def exiger(permission: str) -> Callable[..., Contexte]:
         raise ValueError(f"Permission inconnue : {permission!r}")
 
     def dependance(request: Request, ctx: Annotated[Contexte, Depends(contexte_actif)]) -> Contexte:
-        if not a_la_permission(ctx.utilisateur.role, permission):
+        autorise, delegation_id = delegations.droit(ctx.db, ctx.utilisateur, permission)
+        ctx.delegation_id = delegation_id
+        if not autorise:
             details = {"permission": permission, "methode": request.method, "chemin": request.url.path}
             journaliser(ctx.db, "acces.refuse", apres=details)
             ctx.db.commit()

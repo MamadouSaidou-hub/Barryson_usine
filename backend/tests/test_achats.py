@@ -458,7 +458,7 @@ def test_avertissements_a_lire_avant_de_controler(circuit):
     importation = circuit.appeler("responsable_stock", "POST", "/api/imports-colisage", 201, json=mixte).json()
     reception = circuit.arrivee(commande, importation, tubes=6000)
     notes = " | ".join(reception["avertissements"])
-    assert "TUBE-45" in notes and "6000" in notes  # plus que le solde de la commande
+    assert "TUBE-45 : 6000 piece reçu(s) pour un solde de 5000" in notes  # plus que le solde, sans decimales
     assert "avertissement(s)" in notes  # packing list : metrage manquant
     assert "finition commandée" in notes and packing is None
 
