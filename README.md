@@ -97,7 +97,8 @@ travail entre les deux développeurs.
 | 1 | Mise en ligne (VPS, Caddy, compte PostgreSQL à moindre privilège) | ⏳ |
 | 2 | Référentiel : articles, unités, moules, modèles de ruban versionnés, clients, fournisseurs | ✅ (backend) |
 | 2 | Portage de l'interface | — |
-| 3 | Stock : registre de mouvements, soldes, CMUP, inventaire d'ouverture | — |
+| 3 | Stock : registre de mouvements, validations, réservations, lots et bobines, import du packing list | ✅ (backend) |
+| 3 | Stock : valorisation (CMUP ?), inventaire d'ouverture | ⏳ attend les décisions du DG |
 | 4 | Production : formules, ordres de fabrication, écarts + conditionnement | — |
 | 5 | Achats, ventes, livraisons + documents imprimables | — |
 | 6 | Trésorerie, commissions, recette, formation, bascule | — |

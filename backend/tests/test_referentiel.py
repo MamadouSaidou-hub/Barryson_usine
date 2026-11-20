@@ -10,21 +10,6 @@ from app.modules.identite.models import Entreprise
 from app.modules.identite.permissions import ROLES, a_la_permission
 from app.modules.referentiel import service
 from app.modules.referentiel.models import Article, LargeurReference, VersionModeleRuban
-from tests.conftest import se_connecter
-
-
-@pytest.fixture
-def en_tant_que(client, creer_compte):
-    crees: set[str] = set()
-
-    def _connecter(role: str) -> dict:
-        if role not in crees:
-            creer_compte(role)
-            crees.add(role)
-        client.cookies.clear()
-        return {"X-CSRF-Token": se_connecter(client, f"{role.replace('_', '-')}.test")}
-
-    return _connecter
 
 
 @pytest.fixture

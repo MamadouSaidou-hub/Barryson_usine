@@ -12,6 +12,8 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.ruff.lint.per-file-ignores]
 # Fichiers generes par Alembic : relus, mais pas reformates a la main.
 "alembic/versions/*" = ["E501", "F401", "I001"]
+# Les tests alignent des assertions et des jeux de donnees : on ne les coupe pas artificiellement.
+"tests/*" = ["E501"]
 
 [tool.ruff.lint.isort]
 # Le dossier local "alembic/" ferait passer le paquet alembic pour du code

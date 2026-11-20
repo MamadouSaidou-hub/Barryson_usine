@@ -294,6 +294,76 @@ Flux en deux temps, jamais une écriture directe :
 Comptage planifié, écarts calculés contre le stock théorique, ajustement
 soumis à validation DG/délégataire (jamais auto-appliqué).
 
+### 5.6 Implémentation livrée (2026-11-20) — contrat pour l'interface
+
+**Principe** : le stock n'est jamais un compteur, c'est la somme des
+mouvements. Un mouvement ne se modifie ni ne se supprime (privilèges + trigger,
+même pour le propriétaire du schéma) ; une erreur se corrige par un
+mouvement inverse. Les quantités sont envoyées **positives** : le sens vient
+du type (ou de `sens` pour un ajustement).
+
+| Méthode | Chemin | Droit | Rôle |
+|---|---|---|---|
+| GET | `/api/stock/soldes` (`?niveau=&article_id=&sous_seuil=`) | `stock.consulter` | physique, réservé, disponible, négatif, sous seuil, nb en attente |
+| GET | `/api/stock/mouvements` (`?article_id=&type=&statut=&avant=&limite=`) | `stock.consulter` | `statut` : `en_attente`, `valide`, `rejete` |
+| POST | `/api/stock/mouvements` | `stock.saisir` | types : `entree_directe` (produits finis), `ajustement` (+ `sens`), `sortie_exceptionnelle`, `rebut_destruction` |
+| POST | `/api/stock/mouvements/{id}/validation` | selon le type (voir ci-dessous) | `{decision: valide\|rejete, motif}` ; rejet motivé |
+| GET/POST | `/api/stock/reservations`, `/{id}/lever` | `stock.consulter` / `stock.saisir` | refusée si > disponible (409) |
+| GET | `/api/lots`, `/api/lots/{id}`, `/api/bobines` (`?lot_id=&statut=&couleur=`) | `stock.consulter` | |
+| POST | `/api/receptions` | `stock.saisir` | saisie directe d'un conteneur (quelques bobines) |
+| POST | `/api/imports-colisage` | `stock.saisir` | étape 1 : aperçu + anomalies, **rien en stock** |
+| GET | `/api/imports-colisage`, `/{id}` | `stock.consulter` | |
+| POST | `/api/imports-colisage/{id}/valider` | `stock.valider_reception` | étape 2 : crée lot, bobines, réceptions |
+| POST | `/api/imports-colisage/{id}/annuler` | `stock.saisir` | |
+
+Valideur par type : `entree_directe` → `stock.valider_entree_directe` (DG) ;
+`ajustement` → `stock.valider_ajustement` (DG) ; `sortie_exceptionnelle` et
+`rebut_destruction` → `stock.valider_sortie_exceptionnelle` (DG). Un
+mouvement en attente ou rejeté **ne compte pas** dans le stock.
+
+**Séparation saisie/validation, en trois couches** : l'API (403 + trace
+`validation.refusee_meme_personne`), le service, et un trigger PostgreSQL qui
+refuse un valideur identique à l'auteur même sur une requête SQL directe.
+
+**Types non exposés** : `reception`, `entree` (fabrication), `consommation`,
+`sortie` (livraison), `retour`, `transformation`, `inventaire` sont produits
+par les modules concernés via `service.enregistrer_mouvement`, jamais forgés
+par un appel HTTP (422).
+
+**Import du packing list** : l'API reçoit des **lignes JSON** (max 2000) ; la
+lecture du fichier Excel et la correspondance des colonnes/finitions se font à
+l'écran d'aperçu côté interface. Le serveur garde la valeur brute du
+fournisseur (`couleur_brute`, ex. « Golden01 ») à côté de la finition choisie.
+Anomalies **bloquantes** (empêchent la validation) : numéro manquant ou en
+double, poids manquant, finition non associée, impression sur une bobine non
+imprimée. **Avertissements** : métrage manquant (courant : la bobine ne
+servira à aucune prévision tant qu'il n'est pas renseigné), poids éloigné de
+plus de 10 % de la médiane (dès 10 lignes). Un conteneur déjà reçu, ou déjà
+en cours d'import, est refusé (409) ; la validation revérifie l'état du
+moment.
+
+Limites connues, assumées pour cette livraison :
+- **pas de lecture Excel côté serveur** : surface d'attaque (archives piégées)
+  à n'ouvrir que si l'interface ne peut pas le faire ;
+- **deux feuilles d'un même conteneur** (poids net / métrage et poids brut,
+  sans clé commune — voir `regles-gestion-usine.md` §7.2) : à rapprocher
+  manuellement avant l'envoi, un import = un conteneur = une liste de lignes ;
+- la saisie et le contrôle des réceptions reviennent tous deux au
+  responsable stock (matrice officielle) : la séparation de personnes n'y est
+  donc pas imposée, seulement tracée (auteur et valideur enregistrés) ;
+- la valorisation (CMUP ou autre) reste à définir avec le DG : chaque
+  mouvement porte déjà `cout_unitaire_gnf` (vide), aucune migration ne sera
+  nécessaire ;
+- l'inventaire d'ouverture et les inventaires périodiques (§5.5) ne sont pas
+  encore faits.
+
+**Règle PostgreSQL à retenir pour les prochains modules** : `SELECT ... FOR
+UPDATE` exige le droit `UPDATE`. Sur un registre en ajout seul, le compte de
+l'API ne l'a pas (voulu) : l'exclusion mutuelle passe par une contrainte
+d'unicité (ex. une seule validation par mouvement), pas par un verrou de
+ligne. Testé sous charge : 8 réservations simultanées sur 10 rouleaux → 3
+acceptées, aucune surréservation ; 8 validations simultanées → 1 seule.
+
 ## 6. Production (M06) — le cœur du système
 
 ### 6.1 Fiche de modèle de ruban (`modeles_ruban`), versionnée
