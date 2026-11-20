@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.audit import journaliser, maintenant
 from app.core.config import get_settings
+from app.core.erreurs import Conflit, DonneesInvalides, ErreurMetier, Introuvable, OperationInterdite
 from app.modules.identite import double_facteur, mots_de_passe
 from app.modules.identite.models import Entreprise, SessionUtilisateur, TentativeConnexion, Utilisateur
 from app.modules.identite.permissions import ROLES
@@ -27,46 +28,30 @@ FORMAT_IDENTIFIANT = re.compile(r"^[a-z0-9][a-z0-9._-]{2,49}$")
 VERROUILLAGE_MAX = timedelta(hours=24)
 
 
-class ErreurIdentite(Exception):
-    message = "Opération refusée."
-
-    def __init__(self, message: str | None = None) -> None:
-        super().__init__(message or self.message)
-        self.message = message or self.message
+ErreurIdentite = ErreurMetier
 
 
-class IdentifiantsInvalides(ErreurIdentite):
+class IdentifiantsInvalides(ErreurMetier):
     # Message unique : ne revele ni l'existence du compte ni son verrouillage.
     message = "Identifiant ou mot de passe incorrect, ou compte temporairement verrouillé."
+    code_http = 401
 
 
-class TropDeTentatives(ErreurIdentite):
+class TropDeTentatives(ErreurMetier):
     message = "Trop de tentatives de connexion depuis ce poste. Réessayez plus tard."
+    code_http = 429
 
 
-class SessionInvalide(ErreurIdentite):
+class SessionInvalide(ErreurMetier):
     message = "Session absente ou expirée. Reconnectez-vous."
+    code_http = 401
 
 
-class OperationInterdite(ErreurIdentite):
-    pass
-
-
-class DonneesInvalides(ErreurIdentite):
-    pass
-
-
-class Introuvable(ErreurIdentite):
-    message = "Ressource introuvable."
-
-
-class Conflit(ErreurIdentite):
-    pass
-
-
-class CodeRequis(ErreurIdentite):
+class CodeRequis(ErreurMetier):
     # Le mot de passe est bon ; l'interface doit maintenant demander le code du telephone.
     message = "Saisissez le code à 6 chiffres de votre application d'authentification."
+    code_http = 401
+    details = {"code_requis": True}
 
 
 @dataclass

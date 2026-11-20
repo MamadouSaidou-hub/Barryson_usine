@@ -200,6 +200,44 @@ dans `journal_audit`.
 - `clients`, `fournisseurs` : coordonnées, conditions de paiement/délais
   (fournisseurs), segment/zone/plafond d'encours (clients).
 
+### 4.1 Implémentation livrée (2026-11-20) — contrat pour l'interface
+
+| Ressource | Chemins | Lecture | Écriture |
+|---|---|---|---|
+| Articles | `/api/articles` (`?niveau=&actif=&recherche=`), `/{id}` | `referentiels.consulter` | `referentiels.saisir` (resp. stock) |
+| Conversions d'unités | `/api/conversions-unites` | `referentiels.consulter` | `referentiels.saisir` |
+| Moules | `/api/moules` | `modeles.consulter` | `modeles.saisir` (chef de production) |
+| Largeurs → pièces/tour | `/api/references/largeurs` | `modeles.consulter` | `modeles.saisir` |
+| Conditionnements | `/api/references/conditionnements` | `modeles.consulter` | `modeles.saisir` |
+| Modèles de ruban | `/api/modeles-ruban`, `/{id}`, `/{id}/versions` | `modeles.consulter` | `modeles.saisir` |
+| Clients | `/api/clients`, `/{id}` | `clients.consulter` | `clients.saisir` (dir. commercial) |
+| Fournisseurs | `/api/fournisseurs`, `/{id}` | `achats.consulter` | `achats.saisir` (resp. stock) |
+
+Méthodes : `GET` (liste, 500 max), `POST` (création), `PATCH` (modification
+partielle : seuls les champs envoyés changent, `null` efface un champ
+facultatif). **Aucun `DELETE`** : on désactive avec `{"actif": false}`, et la
+base refuse la suppression au compte de l'API.
+
+Règles appliquées :
+- codes normalisés en majuscules, uniques par entreprise ;
+- niveau de stock, unité, code et famille **ne se modifient jamais** (champs
+  absents des schémas de modification → 422) ;
+- article de niveau `matiere_premiere` refusé (403) tant que le réglage
+  `NIVEAU_MATIERE_PREMIERE_ACTIF` est faux ;
+- **modèle de ruban versionné** : `POST /{id}/versions` avec un `motif`
+  obligatoire crée la version suivante ; les champs absents sont repris de la
+  version en vigueur ; si largeur ou longueur changent, pièces/tour et
+  pièces/carton sont recalculées depuis les références (ou fournies). Les
+  versions sont figées en base, même pour le propriétaire du schéma ;
+- `complet: true` quand moule, produit fini et tube papier sont renseignés —
+  condition à vérifier au lancement d'un ordre de fabrication (M06) ;
+- tube papier = article `semi_fini`, produit fini = article `produit_fini`
+  (contrôlé).
+
+Données de l'usine déjà connues : `python -m app.modules.referentiel.cli
+charger-references` (4 largeurs, 5 conditionnements BOPP confirmés ;
+relançable sans risque, n'écrase jamais une valeur corrigée par l'usine).
+
 ## 5. Stock à trois niveaux (M04/M05/M08)
 
 ### 5.1 Principe général
@@ -410,6 +448,13 @@ indicateurs) : production (prioritaire), stocks, achats, ventes, finances,
 RH, contrôle (opérations en attente de validation).
 
 ## 10. Points encore ouverts (non bloquants pour démarrer, à tenir à jour)
+
+**À faire confirmer par le DG (ajouté le 2026-11-20)** : la matrice
+officielle ne dit pas qui crée les fiches du référentiel. Choix appliqué en
+attendant, modifiable en une ligne dans `permissions.py` : articles et
+conversions → responsable stock ; moules, modèles et références de
+production → chef de production ; clients → directeur commercial ;
+fournisseurs → responsable stock. Le DG consulte tout, ne saisit rien.
 
 Mis à jour après la « fiche de synthèse » du 2026-11-18 — rien de nouveau
 dans ce document par rapport aux manques déjà identifiés. Hors périmètre

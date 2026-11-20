@@ -86,7 +86,9 @@ def test_chaque_tentative_est_enregistree(client, creer_compte, db):
     creer_compte("dg")
     _connexion(client, "dg.test", "Mauvais-Mot-De-Passe-1")
     _connexion(client, "dg.test")
-    motifs = db.scalars(select(TentativeConnexion.motif).order_by(TentativeConnexion.id)).all()
+    # Filtre sur le compte du test : le registre (en ajout seul) peut contenir d'autres essais.
+    motifs = db.scalars(select(TentativeConnexion.motif).where(TentativeConnexion.identifiant == "dg.test")
+                        .order_by(TentativeConnexion.id)).all()
     assert motifs == ["mot_de_passe_incorrect", "ok"]
 
 

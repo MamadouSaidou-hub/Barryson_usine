@@ -3,8 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, FastAPI, Query, Request, Response, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -30,29 +29,6 @@ from app.modules.identite.schemas import (
 )
 
 router = APIRouter(prefix="/api")
-
-_CODES = {
-    service.CodeRequis: status.HTTP_401_UNAUTHORIZED,
-    service.IdentifiantsInvalides: status.HTTP_401_UNAUTHORIZED,
-    service.SessionInvalide: status.HTTP_401_UNAUTHORIZED,
-    service.TropDeTentatives: status.HTTP_429_TOO_MANY_REQUESTS,
-    service.OperationInterdite: status.HTTP_403_FORBIDDEN,
-    service.Introuvable: status.HTTP_404_NOT_FOUND,
-    service.Conflit: status.HTTP_409_CONFLICT,
-    service.DonneesInvalides: status.HTTP_400_BAD_REQUEST,
-}
-
-
-def installer_gestionnaires(app: FastAPI) -> None:
-    def gerer(_request: Request, erreur: Exception) -> JSONResponse:
-        assert isinstance(erreur, service.ErreurIdentite)
-        code = next((c for t, c in _CODES.items() if isinstance(erreur, t)), status.HTTP_400_BAD_REQUEST)
-        contenu = {"detail": erreur.message}
-        if isinstance(erreur, service.CodeRequis):
-            contenu["code_requis"] = True
-        return JSONResponse(status_code=code, content=contenu)
-
-    app.add_exception_handler(service.ErreurIdentite, gerer)
 
 
 def _poser_cookie(response: Response, ouverte: service.SessionOuverte) -> None:
