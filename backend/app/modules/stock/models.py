@@ -171,6 +171,8 @@ class ValidationMouvement(Audite, Base):
     mouvement_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("mouvements_stock.id"), unique=True)
     decision: Mapped[str] = mapped_column(String(10))
     valide_par: Mapped[uuid.UUID] = mapped_column(ForeignKey("utilisateurs.id"))
+    # Renseigne quand un delegataire valide au nom du DG : la decision reste imputable.
+    delegation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("delegations.id"))
     motif: Mapped[str | None] = mapped_column(Text)
     cree_le: Mapped[datetime] = _horodatage()
 

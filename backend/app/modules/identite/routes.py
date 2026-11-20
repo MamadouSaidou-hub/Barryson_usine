@@ -10,11 +10,18 @@ from sqlalchemy.orm import Session
 from app.core.audit import JournalAudit, verifier_chaine
 from app.core.config import get_settings
 from app.core.db import get_db
-from app.modules.identite import service
-from app.modules.identite.dependances import Contexte, adresse_ip, contexte_authentifie, exiger
-from app.modules.identite.permissions import permissions_du_role
+from app.modules.identite import delegations, service
+from app.modules.identite.dependances import (
+    Contexte,
+    adresse_ip,
+    contexte_actif,
+    contexte_authentifie,
+    exiger,
+)
 from app.modules.identite.schemas import (
     ConfigurationDoubleFacteur,
+    DelegationCreation,
+    DelegationPublic,
     DemandeChangementMotDePasse,
     DemandeCode,
     DemandeConnexion,
@@ -44,10 +51,12 @@ def _poser_cookie(response: Response, ouverte: service.SessionOuverte) -> None:
     )
 
 
-def _reponse_session(utilisateur, csrf: str) -> ReponseSession:
+def _reponse_session(utilisateur, csrf: str, db: Session) -> ReponseSession:
+    toutes, deleguees = delegations.permissions_effectives(db, utilisateur)
     return ReponseSession(
         utilisateur=UtilisateurPublic.model_validate(utilisateur),
-        permissions=permissions_du_role(utilisateur.role),
+        permissions=toutes,
+        permissions_deleguees=deleguees,
         double_facteur_a_configurer=service.double_facteur_a_configurer(utilisateur),
         csrf_token=csrf,
     )
@@ -62,13 +71,13 @@ def connexion(demande: DemandeConnexion, request: Request, response: Response,
     ouverte = service.connecter(db, demande.identifiant, demande.mot_de_passe, code=demande.code,
                                 ip=adresse_ip(request), user_agent=request.headers.get("user-agent"))
     _poser_cookie(response, ouverte)
-    return _reponse_session(ouverte.utilisateur, ouverte.csrf)
+    return _reponse_session(ouverte.utilisateur, ouverte.csrf, db)
 
 
 @router.get("/auth/moi", response_model=ReponseSession, tags=["Authentification"])
 def moi(ctx: Annotated[Contexte, Depends(contexte_authentifie)]) -> ReponseSession:
     """Permet a l'interface de retrouver l'utilisateur et le jeton CSRF apres un rechargement."""
-    return _reponse_session(ctx.utilisateur, service.jeton_csrf(ctx.jeton))
+    return _reponse_session(ctx.utilisateur, service.jeton_csrf(ctx.jeton), ctx.db)
 
 
 @router.post("/auth/deconnexion", status_code=status.HTTP_204_NO_CONTENT, tags=["Authentification"])
@@ -89,7 +98,7 @@ def changer_mot_de_passe(demande: DemandeChangementMotDePasse, request: Request,
         ip=adresse_ip(request), user_agent=request.headers.get("user-agent"),
     )
     _poser_cookie(response, ouverte)
-    return _reponse_session(ouverte.utilisateur, ouverte.csrf)
+    return _reponse_session(ouverte.utilisateur, ouverte.csrf, ctx.db)
 
 
 @router.post("/auth/double-facteur/initialiser", response_model=ConfigurationDoubleFacteur,
@@ -105,7 +114,7 @@ def initialiser_double_facteur(
 def activer_double_facteur(demande: DemandeCode,
                            ctx: Annotated[Contexte, Depends(contexte_authentifie)]) -> ReponseSession:
     service.activer_double_facteur(ctx.db, ctx.utilisateur, demande.code)
-    return _reponse_session(ctx.utilisateur, service.jeton_csrf(ctx.jeton))
+    return _reponse_session(ctx.utilisateur, service.jeton_csrf(ctx.jeton), ctx.db)
 
 
 # --- Administration des comptes ----------------------------------------------
@@ -168,3 +177,31 @@ def verifier_audit(ctx: Annotated[Contexte, Depends(exiger("audit.verifier"))]) 
     resultat = verifier_chaine(ctx.db)
     service.journaliser_verification(ctx.db, resultat)
     return resultat
+
+
+# --- Delegations du DG -------------------------------------------------------------------------------
+
+
+@router.get("/delegations", response_model=list[DelegationPublic], tags=["Délégations"])
+def lister_delegations(ctx: Annotated[Contexte, Depends(exiger("delegations.gerer"))],
+                       actives: bool = False):
+    return delegations.lister(ctx.db, ctx.utilisateur, seulement_actives=actives)
+
+
+@router.get("/delegations/recues", response_model=list[DelegationPublic], tags=["Délégations"])
+def delegations_recues(ctx: Annotated[Contexte, Depends(contexte_actif)]):
+    """Les delegations en vigueur dont l'utilisateur connecte beneficie."""
+    return delegations.delegations_actives(ctx.db, ctx.utilisateur)
+
+
+@router.post("/delegations", response_model=DelegationPublic, status_code=status.HTTP_201_CREATED,
+             tags=["Délégations"])
+def creer_delegation(demande: DelegationCreation,
+                     ctx: Annotated[Contexte, Depends(exiger("delegations.gerer"))]):
+    return delegations.creer(ctx.db, ctx.utilisateur, demande.model_dump())
+
+
+@router.post("/delegations/{delegation_id}/revoquer", response_model=DelegationPublic, tags=["Délégations"])
+def revoquer_delegation(delegation_id: uuid.UUID,
+                        ctx: Annotated[Contexte, Depends(exiger("delegations.gerer"))]):
+    return delegations.revoquer(ctx.db, ctx.utilisateur, delegation_id)

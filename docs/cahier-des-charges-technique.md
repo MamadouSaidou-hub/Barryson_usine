@@ -179,6 +179,39 @@ Durcissement du 2026-11-20 (toute faille trouvée est corrigée, pas reportée) 
   quotidien hors du serveur avec la sauvegarde chiffrée (ADR 0004), et régler
   `FORWARDED_ALLOW_IPS` sur l'adresse de Caddy.
 
+### 3.3 bis Délégation des validations du DG (2026-11-20)
+
+Le DG valide lui-même, **ou désigne un délégataire** qui valide à sa place.
+Règle confirmée par le client.
+
+| Méthode | Chemin | Droit | Rôle |
+|---|---|---|---|
+| POST | `/api/delegations` | `delegations.gerer` (DG seul) | `{delegataire_id, permissions[], jusqu_au, motif}` |
+| GET | `/api/delegations` (`?actives=`) | `delegations.gerer` | toutes les délégations de l'entreprise |
+| GET | `/api/delegations/recues` | connecté | celles dont je bénéficie en ce moment |
+| POST | `/api/delegations/{id}/revoquer` | `delegations.gerer` | effet immédiat, définitif |
+
+Garde-fous : seules les **validations** du DG se délèguent (achats, ajustement,
+sortie exceptionnelle, entrée directe, dépenses, engagements) ; ni la gestion
+des comptes, ni l'audit, ni la délégation elle-même. Durée **limitée**
+(90 jours au plus, réglable), jamais « pour toujours ». Le délégataire garde son rôle
+et ne gagne que les droits listés, pendant la période. Il reste soumis à la
+**séparation** : il ne valide pas ce qu'il a saisi. Le pouvoir délégué
+disparaît si le DG est désactivé, si le délégataire l'est, ou à la
+révocation. Un administrateur technique ou un autre DG ne peut pas être
+délégataire. Une délégation est **figée** en base : seule sa révocation est
+possible (impossible d'allonger sa durée ou d'ajouter un droit, même pour le
+propriétaire du schéma) ; pour changer, le DG en accorde une nouvelle.
+
+Chaque décision prise par délégation garde la trace de la délégation utilisée
+(`valide_via_delegation_id` sur la commande, `delegation_id` sur la validation
+d'un mouvement). `/api/auth/moi` renvoie `permissions` (propres + déléguées) et
+`permissions_deleguees` pour que l'interface signale « validation au nom du DG ».
+
+**Devises** : les achats se font surtout en **USD et en EUR**. Une commande
+porte un `taux_change_gnf` facultatif (1 unité de la devise = X GNF) ; le détail
+renvoie alors `montant_total_gnf`, estimation à lire par le DG avant de valider.
+
 ### 3.4 Définition de « fini » pour M01 (rappel de `conventions.md`)
 
 Connexion réelle (mot de passe haché, pas de mot de passe en clair nulle

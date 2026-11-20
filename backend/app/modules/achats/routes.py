@@ -44,6 +44,11 @@ def _detail_commande(ctx: Contexte, commande) -> CommandeDetail:
     vue.lignes = [LigneCommandePublic.model_validate(ligne) for ligne in lignes]
     montants = [ligne["montant"] for ligne in lignes if ligne["montant"] is not None]
     vue.montant_total = sum(montants) if montants else None
+    if vue.montant_total is not None:
+        if commande.devise == "GNF":
+            vue.montant_total_gnf = vue.montant_total
+        elif commande.taux_change_gnf is not None:
+            vue.montant_total_gnf = vue.montant_total * commande.taux_change_gnf
     vue.prix_manquants = sum(1 for ligne in lignes if ligne["montant"] is None)
     vue.receptions = [ReceptionResume.model_validate(r) for r in service.receptions_de(ctx.db, commande.id)]
     vue.transitions = [TransitionPublic.model_validate(t) for t in service.transitions(ctx.db, commande)]
@@ -108,7 +113,7 @@ def soumettre(commande_id: uuid.UUID, ctx: Saisie):
 
 @router.post("/commandes-achat/{commande_id}/valider", response_model=CommandeDetail)
 def valider(commande_id: uuid.UUID, ctx: ValidationDG):
-    return _detail_commande(ctx, service.valider(ctx.db, ctx.utilisateur, commande_id))
+    return _detail_commande(ctx, service.valider(ctx.db, ctx.utilisateur, commande_id, ctx.delegation_id))
 
 
 @router.post("/commandes-achat/{commande_id}/refuser", response_model=CommandeDetail)

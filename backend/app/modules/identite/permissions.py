@@ -41,6 +41,7 @@ CATALOGUE: dict[str, str] = {
     "journal_technique.consulter": "Lire le journal technique (connexions, erreurs)",
     "utilisateurs.consulter": "Voir les comptes utilisateurs",
     "utilisateurs.gerer": "Créer, modifier, désactiver un compte, réinitialiser un mot de passe",
+    "delegations.gerer": "Désigner et révoquer des délégataires pour les validations du DG",
     "parametres.consulter": "Voir les paramètres",
     "parametres.gerer": "Modifier les paramètres",
     "referentiels.consulter": "Articles, unités, moules",
@@ -88,6 +89,7 @@ _MATRICE: dict[str, frozenset[str]] = {
         "stock.valider_sortie_exceptionnelle",
         "stock.valider_entree_directe",
         "production.annuler",
+        "delegations.gerer",
         "achats.valider",
         "finances.valider",
         "ventes.valider_engagement",
@@ -122,6 +124,18 @@ _MATRICE: dict[str, frozenset[str]] = {
         "journal_technique.consulter",
     }),
 }
+
+
+# Validations que le DG peut confier a un delegataire pour une duree limitee. Rien d'autre ne se delegue :
+# ni la gestion des comptes, ni l'audit, ni la delegation elle-meme.
+DELEGABLES: frozenset[str] = frozenset({
+    "achats.valider",
+    "stock.valider_ajustement",
+    "stock.valider_sortie_exceptionnelle",
+    "stock.valider_entree_directe",
+    "finances.valider",
+    "ventes.valider_engagement",
+})
 
 
 def a_la_permission(role: str, permission: str) -> bool:

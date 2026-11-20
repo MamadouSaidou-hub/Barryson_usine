@@ -15,7 +15,7 @@ from sqlalchemy import (
     String,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.audit import Audite, maintenant
@@ -87,6 +87,30 @@ class SessionUtilisateur(Base):
     revoquee_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ip: Mapped[str | None] = mapped_column(String(45))
     user_agent: Mapped[str | None] = mapped_column(String(255))
+
+
+class Delegation(Audite, Base):
+    """Le DG confie des validations a un collaborateur, pour une duree limitee, revocable a tout moment."""
+
+    __tablename__ = "delegations"
+    __table_args__ = (
+        CheckConstraint("delegant_id <> delegataire_id", name="delegant_distinct"),
+        CheckConstraint("date_fin > date_debut", name="periode_valide"),
+        CheckConstraint("(revoquee_le IS NULL) = (revoquee_par IS NULL)", name="revocation_coherente"),
+        Index("ix_delegations_delegataire", "delegataire_id", "date_fin"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entreprise_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("entreprises.id"), index=True)
+    delegant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("utilisateurs.id"))
+    delegataire_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("utilisateurs.id"))
+    permissions: Mapped[list] = mapped_column(JSONB)
+    date_debut: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    date_fin: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    motif: Mapped[str] = mapped_column(String(300))
+    cree_le: Mapped[datetime] = _horodatage()
+    revoquee_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoquee_par: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("utilisateurs.id"))
 
 
 class TentativeConnexion(Base):

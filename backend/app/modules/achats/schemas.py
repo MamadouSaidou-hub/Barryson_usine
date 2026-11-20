@@ -39,9 +39,14 @@ class LigneCommandeEntree(_Entree):
     couleur_finition: CouleurFinition | None = None
 
 
+Taux = Annotated[Decimal, Field(gt=0, le=10**9, max_digits=16, decimal_places=4)]
+
+
 class CommandeCreation(_Entree):
     fournisseur_id: uuid.UUID
     devise: Devise
+    # Taux du jour : 1 unite de la devise vaut X GNF. Sert a estimer le montant en GNF pour le DG.
+    taux_change_gnf: Taux | None = None
     date_arrivee_prevue: date | None = None
     reference_fournisseur: Annotated[str, StringConstraints(strip_whitespace=True, max_length=80)] | None = (
         None
@@ -55,6 +60,7 @@ class CommandeModification(_Entree):
 
     fournisseur_id: uuid.UUID | None = None
     devise: Devise | None = None
+    taux_change_gnf: Taux | None = None
     date_arrivee_prevue: date | None = None
     reference_fournisseur: Annotated[str, StringConstraints(strip_whitespace=True, max_length=80)] | None = (
         None
@@ -112,6 +118,7 @@ class CommandePublic(_Sortie):
     fournisseur_id: uuid.UUID
     statut: StatutCommande
     devise: str
+    taux_change_gnf: Nombre | None
     date_arrivee_prevue: date | None
     reference_fournisseur: str | None
     commentaire: str | None
@@ -119,6 +126,7 @@ class CommandePublic(_Sortie):
     cree_le: datetime
     valide_par: uuid.UUID | None
     valide_le: datetime | None
+    valide_via_delegation_id: uuid.UUID | None
     commandee_le: datetime | None
     motif_decision: str | None
 
@@ -127,6 +135,8 @@ class CommandeDetail(CommandePublic):
     lignes: list[LigneCommandePublic] = []
     # Somme des lignes dont le prix est connu, dans la devise de la commande.
     montant_total: Nombre | None = None
+    # Estimation en GNF : le total si la devise est le GNF, sinon total x taux saisi a la commande.
+    montant_total_gnf: Nombre | None = None
     prix_manquants: int = 0
     receptions: list[ReceptionResume] = []
     transitions: list[TransitionPublic] = []

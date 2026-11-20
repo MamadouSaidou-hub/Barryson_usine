@@ -6,7 +6,7 @@ pas. Les sorties ne contiennent jamais de hash ni de jeton de session.
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -69,6 +69,8 @@ class UtilisateurPublic(BaseModel):
 class ReponseSession(BaseModel):
     utilisateur: UtilisateurPublic
     permissions: list[str]
+    # Parmi `permissions`, celles qui viennent d'une delegation du DG (a signaler dans l'interface).
+    permissions_deleguees: list[str] = []
     # Vrai : seul l'ecran de configuration du second facteur est utilisable.
     double_facteur_a_configurer: bool
     # A renvoyer dans l'en-tete X-CSRF-Token de toute requete qui modifie quelque chose.
@@ -105,3 +107,26 @@ class VerificationAudit(BaseModel):
     entrees_verifiees: int
     premiere_anomalie: int | None
     dernier_hash: str
+
+
+class DelegationCreation(_Entree):
+    delegataire_id: uuid.UUID
+    permissions: list[str] = Field(min_length=1, max_length=10)
+    # Derniere journee de validite (incluse). La duree maximale est reglee cote serveur.
+    jusqu_au: date
+    motif: str = Field(min_length=5, max_length=300)
+
+
+class DelegationPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    delegant_id: uuid.UUID
+    delegataire_id: uuid.UUID
+    permissions: list[str]
+    date_debut: datetime
+    date_fin: datetime
+    motif: str
+    cree_le: datetime
+    revoquee_le: datetime | None
+    revoquee_par: uuid.UUID | None

@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     # tant qu'un tel compte n'existe pas, imposer que le valideur du resultat differe de celui qui
     # l'a saisi bloquerait le chef de production seul. A activer des qu'un agent existe.
     separer_saisie_validation_resultat: bool = False
+    # Une delegation du DG est toujours limitee dans le temps : pas de pouvoir confie "pour toujours".
+    delegation_duree_max_jours: int = 90
     # Roles tenus de valider un code a usage unique a la connexion.
     roles_double_facteur: list[str] = sorted(ROLES_DOUBLE_FACTEUR_MINIMUM)
 
