@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
 
+# Le jeton de la CI ne peut que lire le depot : une action compromise ne pourrait rien pousser.
+permissions:
+  contents: read
+
+# Les actions sont epinglees par empreinte de commit, pas par tag : un tag peut etre
+# deplace par qui compromet le depot de l'action (cas reel : trivy-action, 2025).
+# Pour mettre a jour : resoudre le nouveau tag en empreinte et garder le tag en commentaire.
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -35,9 +43,9 @@ jobs:
       POSTGRES_APP_PASSWORD: barryson_app_ci
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
           cache: pip
@@ -73,14 +81,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Construire l'image de production de l'API
         # Sans INSTALLER_DEV : c'est l'image qui partira en production qui est scannee.
         run: docker build -t barryson-api:${{ github.sha }} backend
 
       - name: Scanner les dependances Python
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: backend
@@ -89,7 +97,7 @@ jobs:
           exit-code: "1"
 
       - name: Scanner l'image (systeme + bibliotheques)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: barryson-api:${{ github.sha }}
           severity: HIGH,CRITICAL
