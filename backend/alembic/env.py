@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.core.db import Base
 from app.modules.identite import models  # noqa: F401
 from app.modules.referentiel import models as _referentiel  # noqa: F401
+from app.modules.stock import models as _stock  # noqa: F401
 
 config = context.config
 

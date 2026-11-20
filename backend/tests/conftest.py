@@ -121,3 +121,18 @@ def se_connecter(client: TestClient, identifiant: str, mot_de_passe: str = MOT_D
     reponse = client.post("/api/auth/connexion", json=donnees)
     assert reponse.status_code == 200, reponse.text
     return reponse.json()["csrf_token"]
+
+
+@pytest.fixture
+def en_tant_que(client, creer_compte):
+    """Se connecte avec le profil demande (compte cree au besoin) et renvoie l'en-tete CSRF."""
+    crees: set[str] = set()
+
+    def _connecter(role: str) -> dict:
+        if role not in crees:
+            creer_compte(role)
+            crees.add(role)
+        client.cookies.clear()
+        return {"X-CSRF-Token": se_connecter(client, f"{role.replace('_', '-')}.test")}
+
+    return _connecter
