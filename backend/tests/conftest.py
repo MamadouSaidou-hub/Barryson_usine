@@ -5,11 +5,12 @@ code applicatif deviennent des points de sauvegarde, rien n'est conserve.
 """
 
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from functools import lru_cache
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from app.core.audit import maintenant
@@ -27,9 +28,13 @@ def hash_de_test() -> str:
     return mots_de_passe.hacher(MOT_DE_PASSE)
 
 
-def _session_annulee(moteur) -> Iterator[Session]:
+def _session_annulee(moteur, role: str | None = None) -> Iterator[Session]:
     connexion = moteur.connect()
     transaction = connexion.begin()
+    if role:
+        # Meme connexion que le proprietaire, mais avec les seuls droits du role : PostgreSQL
+        # controle les privileges sur le role courant, c'est donc equivalent a une connexion directe.
+        connexion.execute(text("SET ROLE " + moteur.dialect.identifier_preparer.quote(role)))
     session = Session(bind=connexion, join_transaction_mode="create_savepoint", expire_on_commit=False)
     try:
         yield session
@@ -39,17 +44,34 @@ def _session_annulee(moteur) -> Iterator[Session]:
         connexion.close()
 
 
-@pytest.fixture
-def db() -> Iterator[Session]:
-    """Session avec le compte applicatif a moindre privilege, comme l'API en production."""
-    yield from _session_annulee(engine)
-
-
 @pytest.fixture(scope="session")
 def moteur_proprietaire():
     moteur = create_engine(get_settings().database_url_proprietaire)
     yield moteur
     moteur.dispose()
+
+
+@pytest.fixture
+def db(moteur_proprietaire) -> Iterator[Session]:
+    """Session avec les droits du compte applicatif a moindre privilege, comme l'API en production."""
+    yield from _session_annulee(moteur_proprietaire, role=get_settings().postgres_app_user)
+
+
+@pytest.fixture
+def proprietaire(db):
+    """`with proprietaire():` execute temporairement avec les droits du proprietaire du schema, sur la
+    meme connexion que `db` : il voit donc les memes donnees. Simule un attaquant ayant ces acces."""
+    role = engine.dialect.identifier_preparer.quote(get_settings().postgres_app_user)
+
+    @contextmanager
+    def _basculer():
+        db.execute(text("RESET ROLE"))
+        try:
+            yield db
+        finally:
+            db.execute(text("SET ROLE " + role))
+
+    return _basculer
 
 
 @pytest.fixture

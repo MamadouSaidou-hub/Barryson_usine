@@ -99,7 +99,8 @@ travail entre les deux développeurs.
 | 2 | Portage de l'interface | — |
 | 3 | Stock : registre de mouvements, validations, réservations, lots et bobines, import du packing list | ✅ (backend) |
 | 3 | Stock : valorisation (CMUP ?), inventaire d'ouverture | ⏳ attend les décisions du DG |
-| 4 | Production : formules, ordres de fabrication, écarts + conditionnement | — |
+| 4 | Production : ordres de fabrication, prévision, résultat réel, clôture | ✅ (backend) |
+| 4 | Doctor Rewinder (M07) + conditionnement | — |
 | 5 | Achats, ventes, livraisons + documents imprimables | — |
 | 6 | Trésorerie, commissions, recette, formation, bascule | — |
 

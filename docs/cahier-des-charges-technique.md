@@ -475,6 +475,81 @@ reste du cycle de vie de l'OF.
 pièces restantes), avec le lien `ordre_fabrication_id` conservé sur le
 mouvement. Jamais de saisie manuelle de cette entrée.
 
+### 6.6 Implémentation livrée (2026-11-20) — contrat pour l'interface
+
+Un point d'entrée par transition, jamais de `PATCH` sur le statut. Chacune
+vérifie l'état courant (409 sinon), le droit de l'appelant, et s'inscrit dans
+`transitions_ordre_fabrication` (registre en ajout seul : qui, quand, motif).
+
+| Méthode | Chemin | Droit | De → vers |
+|---|---|---|---|
+| POST | `/api/production/previsions` | `production.consulter` | prévision sans rien créer (écran de préparation) |
+| GET | `/api/ordres-fabrication` (`?statut=&bobine_id=&modele_id=`), `/{id}` | `production.consulter` | détail : prévision, saisie, résultat calculé, transitions |
+| POST | `/api/ordres-fabrication` | `production.saisir` (chef de production) | → brouillon |
+| PATCH | `/api/ordres-fabrication/{id}` | `production.saisir` | brouillon seulement : métrage, commentaire |
+| POST | `…/soumettre` | `production.saisir` | brouillon → soumis : fige la prévision, réserve les tubes |
+| POST | `…/valider-matieres` | `stock.executer_sortie` (resp. stock) | soumis → matières validées : sortie des tubes |
+| POST | `…/demarrer` | `production.saisir` | matières validées → en cours |
+| PUT | `…/resultat` | `production.saisir` | en cours / résultat saisi → résultat saisi |
+| POST | `…/valider-resultat` | `production.valider` (chef de production) | résultat saisi → résultat validé |
+| POST | `…/cloturer` | `production.cloturer` (resp. stock) | résultat validé → clôturé : entrée des produits finis |
+| POST | `…/annuler` | `production.annuler` (DG) | tout état non terminal → annulé, `motif` obligatoire |
+
+**Numérotation** `OF-AAAA-NNNNN`, par entreprise et par année, attribuée par un
+incrément atomique en base : aucun doublon possible, même sous charge.
+
+**Bobine** : un ordre porte sur une bobine ; elle doit avoir un **métrage
+propre** connu (sinon aucune prévision fiable : 400 explicite), un métrage
+engagé qui ne le dépasse pas et couvre au moins un tour. Une bobine ne sert
+qu'à **un seul ordre non terminé** (garanti par un index partiel en base). À
+la clôture elle devient `entamee_presente` (métrage restant jamais présumé)
+ou `epuisee` si l'opérateur le déclare (`bobine_epuisee`), avec sortie du
+stock. Séances cumulées au-delà du métrage initial : avertissement, pas un
+blocage.
+
+**Prévision** figée à la soumission avec les valeurs de la **version de la
+fiche** en vigueur à la création (§6.1) : un ordre reste explicable même après
+évolution de la fiche. Formules et cas de non-régression : `calculs.py`,
+fonctions pures isolées (`VERSION_FORMULE` est stockée avec chaque résultat
+validé, pour savoir quelle règle l'a produit).
+
+**Résultat** : la saisie est acceptée telle quelle ; l'API renvoie aussitôt le
+calcul et `coherent` / `ecart_comptage` (positif = pièce oubliée, négatif =
+double comptage). Seule la **validation** exige un comptage cohérent. La saisie
+se corrige tant que rien n'est validé (chaque correction est tracée).
+
+**Stock** : à la soumission, réservation d'un tube par pièce prévue ; si le
+disponible est insuffisant, **avertissement** `tubes_insuffisants` et pas de
+blocage (stock négatif jamais bloquant, décision 0003). À la validation des
+matières, sortie des tubes (`consommation`, lien `ordre_fabrication_id`) et
+levée de la réservation. À la clôture : entrée des produits finis (jamais
+saisie à la main), puis régularisation des tubes sur les pièces réellement
+produites (`retour` ou `consommation` de l'écart). À l'annulation après sortie
+des matières : `retour` des tubes.
+
+**Produits finis** : l'entrée est en **cartons complets** si l'article se gère
+au carton (les pièces restantes restent un reliquat visible sur l'ordre :
+`pieces_restantes`), ou en pièces si l'article se gère à la pièce.
+
+À faire confirmer avec le DG / le chef de production :
+- l'**unité de gestion des produits finis** (carton ou pièce) et le sort des
+  pièces restantes (reliquat à recompléter par un ordre suivant ?) ;
+- la **séparation saisie/validation du résultat** : la matrice officielle
+  n'a pas de profil « agent de saisie » distinct du chef de production, donc
+  non imposée par défaut. Réglage `SEPARER_SAISIE_VALIDATION_RESULTAT` à
+  activer dès qu'un agent existe (testé) ;
+- la **nomenclature** des consommations : seules la bobine et le tube sont
+  modélisés. Plastiques d'emballage, étiquettes, cartons vides, aluminium :
+  non encore rattachés à un modèle ;
+- la **formule du résultat réel** (§6.4), à reconfirmer en atelier.
+
+Les quantités envoyées au Doctor Rewinder sont enregistrées dans le résultat
+de l'ordre ; le suivi des encours (M07) est le prochain module.
+
+Testé sous charge réelle : 8 créations simultanées sur 8 bobines et 6 sur une
+même bobine → 9 ordres, 5 refus propres, numéros contigus sans doublon ; 6
+validations simultanées des matières → 1 seule sortie de tubes.
+
 ## 7. Doctor Rewinder (M07)
 
 Table dédiée `encours_doctor_rewinder` (pas un statut sur `produits_finis`) :

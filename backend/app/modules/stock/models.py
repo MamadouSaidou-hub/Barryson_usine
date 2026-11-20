@@ -147,8 +147,7 @@ class MouvementStock(Audite, Base):
     unite: Mapped[str] = mapped_column(String(10))
     lot_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("lots.id"))
     bobine_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("bobines.id"))
-    # Rattache a l'ordre de fabrication par le module production (cle etrangere ajoutee alors).
-    ordre_fabrication_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    ordre_fabrication_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ordres_fabrication.id"))
     # Prepare la valorisation (CMUP ou autre) sans migration : methode a definir avec le DG.
     cout_unitaire_gnf: Mapped[int | None] = mapped_column(BigInteger)
     requiert_validation: Mapped[bool] = mapped_column(Boolean)
@@ -191,6 +190,8 @@ class Reservation(Audite, Base):
     article_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("articles.id"), index=True)
     quantite: Mapped[Decimal] = mapped_column(Numeric(14, 3))
     motif: Mapped[str] = mapped_column(Text)
+    ordre_fabrication_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ordres_fabrication.id"),
+                                                                   index=True)
     statut: Mapped[str] = mapped_column(String(10), default="ouverte", server_default="ouverte")
     cree_par: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("utilisateurs.id"))
     cree_le: Mapped[datetime] = _horodatage()
