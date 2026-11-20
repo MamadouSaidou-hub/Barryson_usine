@@ -30,6 +30,9 @@ jobs:
       POSTGRES_USER: barryson
       POSTGRES_PASSWORD: barryson
       POSTGRES_DB: barryson_test
+      # Les tests tournent avec le compte a moindre privilege, comme l'API en production.
+      POSTGRES_APP_USER: barryson_app
+      POSTGRES_APP_PASSWORD: barryson_app_ci
 
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +41,15 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+
+      - name: Installer libpq (client PostgreSQL du systeme)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpq5 postgresql-client
+
+      - name: Creer le compte applicatif a moindre privilege
+        env:
+          PGHOST: localhost
+          PGPASSWORD: barryson
+        run: sh docker/postgres/10-role-applicatif.sh
 
       - name: Installer les dependances
         working-directory: backend
@@ -54,3 +66,32 @@ jobs:
       - name: Tests
         working-directory: backend
         run: pytest -q
+
+  securite:
+    # Gate de l'ADR 0004 : une vulnerabilite haute ou critique corrigeable bloque la fusion.
+    # Une derogation doit etre ecrite, motivee et datee dans .trivyignore (racine du depot).
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construire l'image de production de l'API
+        # Sans INSTALLER_DEV : c'est l'image qui partira en production qui est scannee.
+        run: docker build -t barryson-api:${{ github.sha }} backend
+
+      - name: Scanner les dependances Python
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: backend
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Scanner l'image (systeme + bibliotheques)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: barryson-api:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

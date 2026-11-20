@@ -1,0 +1,10 @@
+# Derogations au gate de vulnerabilites (ADR 0004).
+# Regle du projet : une faille trouvee se corrige, elle ne s'ignore pas.
+# Une entree n'est admise qu'en dernier recours, avec date, motif et condition de revue.
+#
+# Historique :
+# 2026-11-19 — CVE-2025-47273 (setuptools 70.3.0) ignoree comme faux positif, attribue
+#              a tort au SBOM de psycopg-binary.
+# 2026-11-20 — Derogation retiree. Cause reelle : le SBOM embarque par pip lui-meme
+#              (pip/_vendor/bom.cdx.json). Corrige a la source : pip et setuptools
+#              sont desinstalles de l'image de production.

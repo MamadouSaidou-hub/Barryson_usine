@@ -44,7 +44,7 @@ métier porte `entreprise_id`, filtré à un point de passage unique
 |---|---|---|---|
 | M01 | Identité, rôles, RBAC, audit | — | 2 (en cours) |
 | M02 | Référentiels (articles, unités, moules, modèles de ruban, clients, fournisseurs) | M01 | 2-3 |
-| M04/M05 | Stock matières premières + semi-finis (lots, bobines, mouvements, réservations) | M02 | 3 |
+| M04/M05 | Stock semi-finis achetés (lots, bobines, mouvements, réservations) + niveau matière première **générique, non prioritaire** (aucun cas d'usage confirmé — réunion usine 2026-11-19, voir `regles-gestion-usine.md` §7.1) | M02 | 3 |
 | M03 | Achats et fournisseurs | M02, M04 | 3-5 |
 | M06 | Production (ordres de fabrication, prévision, résultat réel) | M04/M05 | 4 |
 | M07 | Doctor Rewinder | M06 | 4 |
@@ -67,8 +67,9 @@ dépendance technique, le stock (M04/M05) doit être posé avant.
   `chef_production`, `directeur_commercial`, `responsable_stock`,
   `comptable`, `responsable_rh`, `administrateur`.
 - `sessions` : cookie httpOnly + CSRF token, pas de JWT en localStorage
-  (décision déjà actée).
-- `journal_audit` : voir §1.3.
+  (décision déjà actée). Seul le hash SHA-256 du jeton est stocké.
+- `tentatives_connexion` : registre en ajout seul, alimente le limiteur par IP.
+- `journal_audit` : voir §1.3 — numéroté sans trou, chaîné par hash (ADR 0004).
 
 ### 3.2 Matrice de droits (source : cahier des charges officiel §3)
 
@@ -87,7 +88,98 @@ Implémentation : une table de policy statique (`permissions.py` ou
 unitairement contre ce tableau. L'absence des commerciaux dans cette table
 est volontaire — ils n'ont pas de compte (v1).
 
-### 3.3 Définition de « fini » pour M01 (rappel de `conventions.md`)
+### 3.3 Implémentation livrée (2026-11-19) — contrat pour l'interface
+
+**Authentification** (cookie de session `httpOnly`, `SameSite=Strict`,
+préfixe `__Host-` hors développement ; le jeton n'est jamais lisible en
+JavaScript ni stocké en clair côté serveur) :
+
+| Méthode | Chemin | Rôle | Notes |
+|---|---|---|---|
+| POST | `/api/auth/connexion` | public | `{identifiant, mot_de_passe}` → `{utilisateur, permissions, csrf_token}` |
+| GET | `/api/auth/moi` | connecté | à appeler au chargement de l'app pour retrouver `csrf_token` |
+| POST | `/api/auth/deconnexion` | connecté | révoque la session côté serveur |
+| POST | `/api/auth/mot-de-passe` | connecté | `{actuel, nouveau}` → nouvelle session (l'ancienne tombe) |
+| GET | `/api/utilisateurs` | `utilisateurs.consulter` | |
+| POST | `/api/utilisateurs` | `utilisateurs.gerer` | renvoie `mot_de_passe_temporaire` **une seule fois** |
+| PATCH | `/api/utilisateurs/{id}` | `utilisateurs.gerer` | `{nom?, role?, actif?}` ; pas sur soi-même |
+| POST | `/api/utilisateurs/{id}/reinitialiser-mot-de-passe` | `utilisateurs.gerer` | |
+| GET | `/api/audit?limite=&avant=` | `audit.consulter` (DG) | pagination par numéro décroissant |
+| GET | `/api/audit/verification` | `audit.verifier` (DG) | recalcule toute la chaîne |
+| POST | `/api/auth/double-facteur/initialiser` | connecté | → `{secret, uri}` : afficher `uri` en QR code |
+| POST | `/api/auth/double-facteur/activer` | connecté | `{code}` : confirme avec un premier code |
+| POST | `/api/utilisateurs/{id}/reinitialiser-double-facteur` | `utilisateurs.gerer` | téléphone perdu ; pas sur soi-même |
+
+**Double authentification (DG et administrateur, obligatoire)** : la
+connexion se fait en deux temps. `POST /api/auth/connexion` sans `code`
+répond **401 avec `"code_requis": true`** si le mot de passe est bon ;
+l'interface affiche alors le champ du code à 6 chiffres et renvoie la même
+requête avec `code`. Tant que `double_facteur_a_configurer` est vrai, seul
+l'écran de configuration est utilisable.
+
+Règles que l'interface doit connaître :
+- toute requête autre que GET envoie l'en-tête `X-CSRF-Token` (sinon 403) ;
+- `permissions` sert à **afficher** les menus ; le serveur re-vérifie tout ;
+- `doit_changer_mot_de_passe = true` → seul l'écran de changement est
+  utilisable (le reste répond 403) ;
+- 401 = session absente/expirée → retour à l'écran de connexion ; 403 =
+  droit insuffisant ; 413 = requête trop volumineuse (> 1 Mo) ; 429 = trop
+  de tentatives depuis ce poste ;
+- le message d'échec de connexion est volontairement unique (ne révèle ni
+  l'existence du compte ni son verrouillage).
+
+**Mesures de sécurité en place** : argon2id ; politique de mot de passe
+NIST (12 caractères min., refus des mots prévisibles, du nom, de
+l'identifiant) ; verrouillage progressif du compte (5 échecs → 15 min, puis
+doublement, plafond 24 h) et limiteur par adresse IP ; temps de réponse
+identique compte existant ou non ; expiration par inactivité (2 h) et durée
+maximale (12 h) ; 5 sessions simultanées max ; révocation immédiate au
+changement de rôle, désactivation, réinitialisation ; aucun compte par
+défaut (premier administrateur créé par commande, mot de passe saisi au
+clavier) ; journal d'audit chaîné par hash, numéroté sans trou, protégé par
+triggers contre UPDATE/DELETE/TRUNCATE ; en-têtes HTTP de sécurité et filtre
+de nom d'hôte ; refus de démarrer hors développement avec un secret par
+défaut ; gate Trivy en CI.
+
+Durcissement du 2026-11-20 (toute faille trouvée est corrigée, pas reportée) :
+- **compte PostgreSQL à moindre privilège** : l'API se connecte en
+  `barryson_app`, ni superutilisateur ni propriétaire. Elle ne peut ni
+  modifier le schéma, ni désactiver un trigger, ni modifier/supprimer une
+  ligne du journal d'audit ou des tentatives, ni supprimer un compte ou une
+  entreprise (testé requête par requête). Les migrations seules utilisent
+  le propriétaire. **Règle pour les futurs modules** : une migration qui crée
+  un registre en ajout seul (mouvements de stock, caisse...) retire
+  `UPDATE, DELETE, TRUNCATE` au groupe `barryson_app_droits` ;
+- **double authentification TOTP** (RFC 6238) obligatoire pour le DG et
+  l'administrateur, secret chiffré AES-256-GCM, anti-rejeu, mauvais codes
+  comptés dans le verrouillage ; la configuration refuse de démarrer en
+  production si ces rôles en sont exemptés ;
+- **scellés du journal** : `python -m app.core.scelle creer` produit un
+  scellé signé du dernier état ; `verifier` recalcule la chaîne et contrôle
+  les scellés fournis (code de sortie 1 en cas d'anomalie) — détecte une
+  troncature ou une réécriture de la fin du journal ;
+- **image de production minimale** : sans pytest, ruff, tests, pip ni
+  setuptools ; libpq du système (la roue psycopg-binary embarquait
+  Kerberos/OpenSSL/LDAP de CentOS 7, non déclarés à l'analyse) ; GSSAPI
+  désactivé côté client (`gssencmode=disable`) ; 0 faille haute/critique
+  corrigeable, **aucune dérogation** ;
+- limite de 1 Mo par requête (y compris envoi par morceaux) ; force brute du
+  mot de passe actuel bloquée sur le changement de mot de passe ;
+  description de l'API publiée en développement uniquement.
+
+**Résiduel, expliqué** :
+- des CVE Debian **sans correctif publié** (util-linux, ncurses, krb5,
+  sqlite…) restent dans l'image de base. Aucune mise à jour ne les corrige.
+  Une image « distroless » en compte davantage (89 contre 53 pour la slim,
+  mesuré le 2026-11-20). Atténuation : processus non root, aucun de ces
+  outils n'est appelé par l'application, Kerberos désactivé. Mise à jour du
+  système à chaque construction : dès qu'un correctif paraît, le gate CI
+  l'impose ;
+- **dépend du déploiement** (pas encore de serveur) : envoyer chaque scellé
+  quotidien hors du serveur avec la sauvegarde chiffrée (ADR 0004), et régler
+  `FORWARDED_ALLOW_IPS` sur l'adresse de Caddy.
+
+### 3.4 Définition de « fini » pour M01 (rappel de `conventions.md`)
 
 Connexion réelle (mot de passe haché, pas de mot de passe en clair nulle
 part) ; RBAC vérifié côté serveur avec tests sur chaque rôle × chaque

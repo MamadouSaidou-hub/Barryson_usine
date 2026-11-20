@@ -1,0 +1,2 @@
+# Scripts executes dans des conteneurs Linux : toujours LF, meme extraits sous Windows.
+*.sh text eol=lf

@@ -8,8 +8,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-barryson}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-barryson}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-barryson_app}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-changeme_app}
     volumes:
       - db_data:/var/lib/postgresql/data
+      # Cree le compte applicatif a moindre privilege au premier demarrage.
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-barryson} -d ${POSTGRES_DB:-barryson}"]
       interval: 5s
@@ -21,7 +25,11 @@ services:
       - "127.0.0.1:15432:5432"
 
   api:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        # Outils de test et de qualite : uniquement dans l'image de developpement.
+        INSTALLER_DEV: "true"
     restart: unless-stopped
     depends_on:
       db:
@@ -33,10 +41,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-barryson}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-barryson}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-barryson_app}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-changeme_app}
     volumes:
       # Rechargement a chaud en developpement.
       - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-server-header
     ports:
       - "8000:8000"
 

@@ -9,6 +9,10 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.per-file-ignores]
+# Fichiers generes par Alembic : relus, mais pas reformates a la main.
+"alembic/versions/*" = ["E501", "F401", "I001"]
+
 [tool.ruff.lint.isort]
 # Le dossier local "alembic/" ferait passer le paquet alembic pour du code
 # interne : on le declare explicitement comme dependance externe.

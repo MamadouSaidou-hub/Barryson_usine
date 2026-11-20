@@ -5,18 +5,20 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+# Importer ici les modeles de chaque module pour qu'Alembic detecte leurs tables.
+from app.core import audit  # noqa: F401
 from app.core.config import get_settings
 from app.core.db import Base
-
-# Importer ici les modeles de chaque module pour qu'Alembic detecte leurs tables.
-# Exemple (sprint 2) : from app.modules.identite import models  # noqa: F401
+from app.modules.identite import models  # noqa: F401
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+# Les migrations sont les seules a se connecter en proprietaire du schema.
+# configparser interprete "%" : on le double pour les mots de passe encodes.
+config.set_main_option("sqlalchemy.url", get_settings().database_url_proprietaire.replace("%", "%%"))
 
 target_metadata = Base.metadata
 
