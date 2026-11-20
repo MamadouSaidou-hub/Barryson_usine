@@ -6,7 +6,7 @@ from datetime import timedelta
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import CLE_SECRETE_DEV, MOT_DE_PASSE_DB_DEV, Settings
 from app.modules.identite import mots_de_passe
 from app.modules.identite.dependances import exiger
 from app.modules.identite.permissions import (
@@ -128,11 +128,14 @@ def test_verrouillage_progressif_plafonne():
 
 
 def test_la_production_refuse_les_valeurs_par_defaut():
+    # Valeurs passees explicitement : Settings lit aussi l'environnement (la CI definit
+    # POSTGRES_PASSWORD), un test qui compterait sur les valeurs par defaut serait fragile.
     with pytest.raises(ValidationError, match="SECRET_KEY"):
         Settings(environment="production", hotes_autorises=["erp.exemple.com"],
-                 postgres_password="fort-et-long")
+                 secret_key=CLE_SECRETE_DEV, postgres_password="fort-et-long")
     with pytest.raises(ValidationError, match="POSTGRES_PASSWORD"):
-        Settings(environment="production", secret_key="k" * 40, hotes_autorises=["erp.exemple.com"])
+        Settings(environment="production", secret_key="k" * 40, hotes_autorises=["erp.exemple.com"],
+                 postgres_password=MOT_DE_PASSE_DB_DEV)
 
 
 _PROD = {"environment": "production", "secret_key": "k" * 40, "postgres_password": "fort-et-long",
