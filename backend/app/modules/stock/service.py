@@ -244,6 +244,31 @@ def creer_reservation(db: Session, acteur: Utilisateur, donnees: dict[str, Any])
     return reservation
 
 
+def reserver_pour_ordre(db: Session, acteur: Utilisateur, article_id: uuid.UUID, quantite: Decimal,
+                        ordre_id: uuid.UUID, motif: str) -> bool:
+    """Reserve pour un ordre de fabrication si le disponible le permet, sans commit.
+
+    Renvoie False (sans rien reserver) si le stock ne suffit pas : l'appelant en fait un
+    avertissement, le stock negatif n'etant jamais bloquant (decision 0003).
+    """
+    article = _article_actif(db, acteur, article_id, verrou=True)
+    if quantite > soldes(db, acteur, article_id=article.id)[0]["disponible"]:
+        return False
+    db.add(Reservation(entreprise_id=acteur.entreprise_id, article_id=article.id, quantite=quantite,
+                       motif=motif, ordre_fabrication_id=ordre_id, cree_par=acteur.id))
+    return True
+
+
+def lever_reservations_ordre(db: Session, acteur: Utilisateur, ordre_id: uuid.UUID) -> int:
+    """Leve les reservations ouvertes d'un ordre (matieres sorties ou ordre annule), sans commit."""
+    ouvertes = db.scalars(select(Reservation).where(
+        Reservation.entreprise_id == acteur.entreprise_id, Reservation.ordre_fabrication_id == ordre_id,
+        Reservation.statut == "ouverte")).all()
+    for reservation in ouvertes:
+        reservation.statut, reservation.levee_le, reservation.levee_par = "levee", maintenant(), acteur.id
+    return len(ouvertes)
+
+
 def lever_reservation(db: Session, acteur: Utilisateur, reservation_id: uuid.UUID) -> Reservation:
     reservation = db.scalar(select(Reservation).where(
         Reservation.entreprise_id == acteur.entreprise_id, Reservation.id == reservation_id
