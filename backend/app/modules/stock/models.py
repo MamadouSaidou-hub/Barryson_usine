@@ -226,6 +226,9 @@ class ImportColisage(Audite, Base):
     valide_par: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("utilisateurs.id"))
     valide_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     lot_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("lots.id"))
+    # Rattache a une reception d'achat : seul le controle de conformite de cette reception peut le
+    # valider ou l'abandonner, jamais un appel direct (le controle ne doit pas etre contournable).
+    rattache_reception: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class LigneImportColisage(Base):

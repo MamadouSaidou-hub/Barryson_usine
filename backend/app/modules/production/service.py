@@ -5,9 +5,7 @@ changement de statut generique. Le droit de l'appelant est verifie par la couche
 routes ; l'etat, les donnees et le stock le sont ici, dans une seule transaction.
 """
 
-import functools
 import uuid
-from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
 
@@ -19,6 +17,7 @@ from app.core.audit import maintenant
 from app.core.config import get_settings
 from app.core.erreurs import Conflit, DonneesInvalides, Introuvable, OperationInterdite
 from app.core.numerotation import prochain_numero
+from app.core.transactions import transactionnel
 from app.modules.identite.models import Utilisateur
 from app.modules.production import calculs
 from app.modules.production.calculs import ErreurCalcul, SaisieResultat
@@ -35,21 +34,6 @@ from app.modules.stock.models import Bobine
 
 CHAMPS_SAISIE = ("tours_totaux", "tours_defectueux", "pieces_defectueuses_supplementaires",
                  "quantite_doctor_rewinder", "pertes_definitives")
-
-
-def transactionnel[**P, R](operation: Callable[P, R]) -> Callable[P, R]:
-    """Toute erreur annule la transaction : un changement fait en memoire avant l'echec ne doit
-    jamais pouvoir etre enregistre par une operation suivante sur la meme session."""
-
-    @functools.wraps(operation)
-    def enveloppe(*args: P.args, **kwargs: P.kwargs) -> R:
-        try:
-            return operation(*args, **kwargs)
-        except Exception:
-            args[0].rollback()  # type: ignore[attr-defined]  # premier argument : la session
-            raise
-
-    return enveloppe
 
 
 def _alerte(code: str, message: str) -> dict[str, str]:

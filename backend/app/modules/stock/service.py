@@ -470,38 +470,67 @@ def lister_imports(db: Session, acteur: Utilisateur, statut: str | None) -> list
     return list(db.scalars(requete.order_by(ImportColisage.cree_le.desc()).limit(200)))
 
 
+def _refuser_si_rattache(importation: ImportColisage) -> None:
+    if importation.rattache_reception:
+        raise Conflit("Cet import est rattaché à une réception d'achat : il se valide par le contrôle de "
+                      "conformité de cette réception.")
+
+
 def annuler_import(db: Session, acteur: Utilisateur, import_id: uuid.UUID) -> ImportColisage:
     importation = charger_import(db, acteur, import_id, verrou=True)
-    if importation.statut != "brouillon":
+    try:
+        _refuser_si_rattache(importation)
+        if importation.statut != "brouillon":
+            raise Conflit(f"Import déjà {importation.statut}.")
+        importation.statut = "annule"
+        db.commit()
+    except Exception:
         db.rollback()
-        raise Conflit(f"Import déjà {importation.statut}.")
-    importation.statut = "annule"
-    db.commit()
+        raise
     return importation
+
+
+def abandonner_import(importation: ImportColisage) -> None:
+    """Reception refusee au controle : rien n'entre en stock, le conteneur pourra etre re-importe."""
+    importation.statut = "annule"
+
+
+def executer_import(db: Session, acteur: Utilisateur, importation: ImportColisage, *,
+                    exclure: frozenset[str] = frozenset()) -> Lot:
+    """Cree lot, bobines et receptions depuis un apercu, sans verrou ni commit (a la charge de l'appelant).
+
+    `exclure` : numeros de bobines refusees au controle de conformite ; elles n'entrent pas en stock.
+    """
+    if importation.statut != "brouillon":
+        raise Conflit(f"Import déjà {importation.statut}.")
+    if importation.nb_bloquantes:
+        raise DonneesInvalides(f"{importation.nb_bloquantes} anomalie(s) bloquante(s) : corrigez la "
+                               "packing list et refaites l'import.")
+    article = _article_bobine(db, acteur, importation.article_id)
+    _fournisseur_actif(db, acteur, importation.fournisseur_id)
+    _verifier_lot_inedit(db, acteur, importation.conteneur_reference)
+    colonnes = ("numero_fournisseur", "poids_kg", "metrage_propre", "couleur_finition", "couleur_impression",
+                "module_impression")
+    bobines = [{c: getattr(ligne, c) for c in colonnes} for ligne in lignes_import(db, importation)
+               if ligne.numero_fournisseur not in exclure]
+    if not bobines:
+        raise DonneesInvalides("Toutes les bobines sont refusées : refusez la réception plutôt que de "
+                               "l'accepter.")
+    entete = {"conteneur_reference": importation.conteneur_reference,
+              "numero_facture": importation.numero_facture, "date_reception": importation.date_reception,
+              "fournisseur_id": importation.fournisseur_id}
+    lot = _inserer_reception(db, acteur, entete, article, bobines)
+    importation.statut, importation.valide_par = "valide", acteur.id
+    importation.valide_le, importation.lot_id = maintenant(), lot.id
+    return lot
 
 
 def valider_import(db: Session, acteur: Utilisateur, import_id: uuid.UUID) -> ImportColisage:
     """Transforme l'apercu en lot, bobines et mouvements de reception, en une seule transaction."""
     importation = charger_import(db, acteur, import_id, verrou=True)
     try:
-        if importation.statut != "brouillon":
-            raise Conflit(f"Import déjà {importation.statut}.")
-        if importation.nb_bloquantes:
-            raise DonneesInvalides(f"{importation.nb_bloquantes} anomalie(s) bloquante(s) : corrigez la "
-                                   "packing list et refaites l'import.")
-        article = _article_bobine(db, acteur, importation.article_id)
-        _fournisseur_actif(db, acteur, importation.fournisseur_id)
-        _verifier_lot_inedit(db, acteur, importation.conteneur_reference)
-        bobines = [{c: getattr(ligne, c) for c in ("numero_fournisseur", "poids_kg", "metrage_propre",
-                                                   "couleur_finition", "couleur_impression",
-                                                   "module_impression")}
-                   for ligne in lignes_import(db, importation)]
-        entete = {"conteneur_reference": importation.conteneur_reference,
-                  "numero_facture": importation.numero_facture, "date_reception": importation.date_reception,
-                  "fournisseur_id": importation.fournisseur_id}
-        lot = _inserer_reception(db, acteur, entete, article, bobines)
-        importation.statut, importation.valide_par = "valide", acteur.id
-        importation.valide_le, importation.lot_id = maintenant(), lot.id
+        _refuser_si_rattache(importation)
+        executer_import(db, acteur, importation)
         db.commit()
     except IntegrityError as erreur:
         db.rollback()
