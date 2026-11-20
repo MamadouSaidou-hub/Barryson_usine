@@ -39,7 +39,30 @@ docker compose exec api alembic revision --autogenerate -m "description"
 
 # Appliquer les migrations
 docker compose exec api alembic upgrade head
+
+# Base existante créée avant le 2026-11-20 : créer une fois le compte applicatif
+docker compose exec db sh /docker-entrypoint-initdb.d/10-role-applicatif.sh
+
+# Créer le premier administrateur (une seule fois, mot de passe demandé au clavier)
+docker compose exec api python -m app.modules.identite.cli amorcer \
+    --entreprise "Group BARRYSON Sarl" --identifiant admin --nom "Prénom Nom"
+
+# Seul administrateur ayant perdu son téléphone (accès serveur requis, tracé)
+docker compose exec api python -m app.modules.identite.cli reinitialiser-double-facteur --identifiant admin
+
+# Scellé du journal d'audit (quotidien, à envoyer hors du serveur) et contrôle
+docker compose exec -T api python -m app.core.scelle creer > scelle-$(date +%F).json
+docker compose exec -T api python -m app.core.scelle verifier   # chaîne seule ; ajouter les scellés en argument
 ```
+
+Il n'existe **aucun compte par défaut**. Les autres comptes se créent ensuite
+depuis l'API d'administration (`POST /api/utilisateurs`) avec un mot de passe
+temporaire à changer à la première connexion. Le DG et l'administrateur
+configurent en plus une application d'authentification (code à 6 chiffres).
+
+L'API se connecte avec un compte PostgreSQL **à moindre privilège**
+(`POSTGRES_APP_USER`) ; seules les migrations utilisent le propriétaire du
+schéma (`POSTGRES_USER`).
 
 ## Structure
 
@@ -67,7 +90,8 @@ travail entre les deux développeurs.
 | Semaine | Contenu | État |
 |---|---|---|
 | 1 | Socle technique | ✅ |
-| 1 | Identité, rôles, RBAC serveur, journal d'audit + mise en ligne | ⏳ |
+| 1 | Identité, rôles, RBAC serveur, journal d'audit chaîné | ✅ |
+| 1 | Mise en ligne (VPS, Caddy, compte PostgreSQL à moindre privilège) | ⏳ |
 | 2 | Référentiel (articles, entrepôts, tiers) + portage de l'interface | — |
 | 3 | Stock : registre de mouvements, soldes, CMUP, inventaire d'ouverture | — |
 | 4 | Production : formules, ordres de fabrication, écarts + conditionnement | — |
@@ -87,7 +111,7 @@ en fin de `docs/metier/regles-gestion-usine.md`, §18) :
 | Attendu de la direction | Date limite |
 |---|---|
 | Nomenclature des matières premières/semi-finis + unités de gestion | semaine 2 |
-| Recettes de fabrication colles et tubes papier (rendements) | semaine 3 — toujours manquant, point le plus fragile |
+| Nomenclature tube papier ↔ modèle/moule de ruban (pas de recette de fabrication : confirmé le 2026-11-19 qu'aucune matière première n'est transformée sur site) | semaine 3 |
 | Pièces par carton par modèle + règles de conversion poids/métrage/pièces | semaine 3 |
 | Matrice des droits et seuils de validation (achats, dépenses, ajustements) | semaine 2 |
 | Inventaire physique d'ouverture | semaine 3 |

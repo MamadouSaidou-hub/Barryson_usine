@@ -72,4 +72,10 @@ Une tâche n'est finie que si :
 - Aucune donnée réelle de l'usine dans les jeux de test.
 - Toute nouvelle table métier porte `entreprise_id` (voir décision 0002).
 - Les quantités et l'argent s'écrivent en ajout seul, jamais par écrasement
-  d'un compteur (voir décision 0003).
+  d'un compteur (voir décision 0003). La migration d'un tel registre retire
+  `UPDATE, DELETE, TRUNCATE` au groupe `barryson_app_droits` et pose le
+  trigger `refuser_modification_ajout_seul` (modèle : migration
+  `moindre_privilege`).
+- Toute faille trouvée (relecture, scan Trivy, test) se corrige avant de
+  rendre la main ; une dérogation dans `.trivyignore` est un dernier
+  recours daté et motivé, jamais une facilité.

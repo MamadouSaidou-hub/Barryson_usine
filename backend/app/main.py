@@ -6,17 +6,23 @@ from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.db import engine
+from app.core.securite_http import installer_securite_http
+from app.modules.identite import routes as identite
 
 settings = get_settings()
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.1.0",
-    # La documentation interactive est fermee en production.
-    docs_url=None if settings.is_production else "/api/docs",
+    version="0.2.0",
+    # Description de l'API publiee en developpement local uniquement (pas en recette exposee).
+    docs_url="/api/docs" if settings.docs_publiques else None,
     redoc_url=None,
-    openapi_url=None if settings.is_production else "/api/openapi.json",
+    openapi_url="/api/openapi.json" if settings.docs_publiques else None,
 )
+
+installer_securite_http(app, settings)
+identite.installer_gestionnaires(app)
+app.include_router(identite.router)
 
 
 @app.get("/healthz", tags=["Supervision"])

@@ -11,7 +11,11 @@ Navigateur (React + Vite, installable en PWA)
         │
    PostgreSQL (jamais exposé sur internet)
         │
-   Sauvegarde chiffrée quotidienne hors-site
+   Sauvegarde chiffrée quotidienne hors-site, restauration testée chaque mois
+
+   Surveillance (Uptime Kuma, hébergement séparé) ──▶ alerte si API/DB down
+   CI/CD (GitHub Actions + Trivy) ──▶ gate sécurité avant déploiement
+   Environnement de recette (données anonymisées) ──▶ validé avant la prod
 ```
 
 ## Principes
@@ -22,7 +26,10 @@ Navigateur (React + Vite, installable en PWA)
    dérivé des mouvements, jamais saisi directement. Cela donne l'historique,
    l'inventaire, et la tolérance aux saisies concurrentes.
 3. **Toute écriture sensible laisse une trace nominative** (qui, quoi, valeur
-   avant et après, quand) dans un journal d'audit inaltérable.
+   avant et après, quand) dans un journal d'audit en ajout seul et **chaîné
+   par hash** (`entry_hash = sha256(prev_hash || payload || acteur || date)`)
+   — toute altération a posteriori casse la chaîne et devient détectable
+   (voir `decisions/0004-durcissement-production.md`).
 4. **Un module ne lit pas les tables d'un autre module**, il passe par son
    service. C'est ce qui permettra d'en extraire un plus tard sans tout casser.
 5. **Les identifiants sont des clés étrangères**, jamais des noms. Renommer un
@@ -54,3 +61,12 @@ Navigateur (React + Vite, installable en PWA)
 Les quatre premiers sprints ne dépendent d'aucun détail du cahier des charges :
 ils peuvent avancer pendant que la direction rassemble ses formules de
 fabrication, sa matrice des droits et sa date d'inventaire d'ouverture.
+
+## Durcissement avant mise en service
+
+Voir `decisions/0004-durcissement-production.md` pour le détail : journal
+d'audit chaîné par hash, CI/CD avec gate de vulnérabilité (Trivy), objectifs
+de sauvegarde chiffrés et testés mensuellement (RPO ≤ 24 h, RTO ≤ 1 jour
+ouvré), surveillance active (Uptime Kuma) séparée du journal d'audit métier,
+et environnement de recette avec données anonymisées avant chaque mise en
+production.
