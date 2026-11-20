@@ -25,11 +25,42 @@ docker compose up --build
 PostgreSQL écoute sur `127.0.0.1:15432` (et non 5432, pour ne pas entrer en
 conflit avec une installation locale). Accessible depuis la machine uniquement.
 
+## Interface (démonstration)
+
+```bash
+# 1. Charger les comptes et données de démonstration (développement uniquement)
+docker compose exec api python -m app.demo
+
+# 2. Lancer l'interface (Node 20+) puis ouvrir http://localhost:5173
+cd frontend && npm install && npm run dev
+```
+
+Comptes de démonstration (mot de passe affiché par la commande) : `dg.demo`,
+`stock.demo`, `prod.demo`, `commercial.demo`, `compta.demo`, `admin.demo`. Le DG et
+l'administrateur configurent leur code à 6 chiffres à la première connexion.
+
+L'interface est du React + TypeScript. Tout son habillage (couleurs, polices,
+arrondis) tient dans le bloc de variables en tête de `frontend/src/styles.css` :
+c'est le seul fichier à retoucher pour redessiner l'apparence. Les types de
+l'API se régénèrent depuis le serveur avec
+`node node_modules/openapi-typescript/bin/cli.js http://localhost:8000/api/openapi.json -o src/schema.d.ts`.
+
+## Lancer les tests
+
+Les tests exigent une **base dédiée** (nom finissant par `_test`) : ils lisent
+l'état global et les données de démonstration les fausseraient. Le garde-fou
+refuse de s'exécuter sur la base de développement.
+
+```bash
+docker compose exec db psql -U barryson -d barryson -c "CREATE DATABASE barryson_test;"
+docker compose exec -e POSTGRES_DB=barryson_test api alembic upgrade head
+docker compose exec -e POSTGRES_DB=barryson_test api pytest -q
+```
+
 ## Commandes utiles
 
 ```bash
-# Tests
-docker compose exec api pytest -q
+# Tests : voir « Lancer les tests » ci-dessus (base dédiée)
 
 # Qualité du code
 docker compose exec api ruff check .

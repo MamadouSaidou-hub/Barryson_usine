@@ -27,6 +27,7 @@ from app.modules.identite.schemas import (
     DemandeConnexion,
     DemandeCreationUtilisateur,
     DemandeModificationUtilisateur,
+    EntreeAnnuaire,
     EntreeAudit,
     MotDePasseTemporaire,
     ReponseSession,
@@ -157,6 +158,13 @@ def reinitialiser_double_facteur(utilisateur_id: uuid.UUID,
                                  ctx: Annotated[Contexte, Depends(exiger("utilisateurs.gerer"))]) -> Response:
     service.reinitialiser_double_facteur(ctx.db, ctx.utilisateur, utilisateur_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/annuaire", response_model=list[EntreeAnnuaire], tags=["Utilisateurs"])
+def annuaire(ctx: Annotated[Contexte, Depends(contexte_actif)]):
+    """Qui est qui dans l'entreprise, pour afficher des noms plutot que des identifiants. Ouvert a tout
+    utilisateur connecte : ni identifiant de connexion, ni donnee personnelle."""
+    return service.lister_utilisateurs(ctx.db, ctx.utilisateur)
 
 
 # --- Journal d'audit ---------------------------------------------------------
