@@ -47,6 +47,9 @@ docker compose exec db sh /docker-entrypoint-initdb.d/10-role-applicatif.sh
 docker compose exec api python -m app.modules.identite.cli amorcer \
     --entreprise "Group BARRYSON Sarl" --identifiant admin --nom "Prénom Nom"
 
+# Charger les données usine déjà connues (largeurs, conditionnements) — relançable
+docker compose exec api python -m app.modules.referentiel.cli charger-references
+
 # Seul administrateur ayant perdu son téléphone (accès serveur requis, tracé)
 docker compose exec api python -m app.modules.identite.cli reinitialiser-double-facteur --identifiant admin
 
@@ -92,7 +95,8 @@ travail entre les deux développeurs.
 | 1 | Socle technique | ✅ |
 | 1 | Identité, rôles, RBAC serveur, journal d'audit chaîné | ✅ |
 | 1 | Mise en ligne (VPS, Caddy, compte PostgreSQL à moindre privilège) | ⏳ |
-| 2 | Référentiel (articles, entrepôts, tiers) + portage de l'interface | — |
+| 2 | Référentiel : articles, unités, moules, modèles de ruban versionnés, clients, fournisseurs | ✅ (backend) |
+| 2 | Portage de l'interface | — |
 | 3 | Stock : registre de mouvements, soldes, CMUP, inventaire d'ouverture | — |
 | 4 | Production : formules, ordres de fabrication, écarts + conditionnement | — |
 | 5 | Achats, ventes, livraisons + documents imprimables | — |

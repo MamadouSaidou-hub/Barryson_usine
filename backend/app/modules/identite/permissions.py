@@ -44,8 +44,10 @@ CATALOGUE: dict[str, str] = {
     "parametres.consulter": "Voir les paramètres",
     "parametres.gerer": "Modifier les paramètres",
     "referentiels.consulter": "Articles, unités, moules",
-    "modeles.consulter": "Fiches modèles de ruban",
-    "modeles.saisir": "Créer et modifier les fiches modèles de ruban",
+    # Non precise par la matrice officielle : attribue au responsable stock, a confirmer avec le client.
+    "referentiels.saisir": "Créer et modifier les articles et les conversions d'unités",
+    "modeles.consulter": "Fiches modèles de ruban, moules, références de conditionnement",
+    "modeles.saisir": "Créer et modifier les fiches modèles de ruban, moules et références",
     "stock.consulter": "Stocks des trois niveaux",
     "stock.saisir": "Réceptions, packing lists, mouvements, inventaires, entrées de produits finis",
     "stock.valider_reception": "Contrôler une réception, exécuter une sortie déjà validée",
@@ -100,7 +102,8 @@ _MATRICE: dict[str, frozenset[str]] = {
     }),
     "responsable_stock": frozenset({
         "stock.consulter", "production.consulter", "referentiels.consulter", "achats.consulter",
-        "stock.saisir", "achats.saisir",
+        "modeles.consulter",
+        "stock.saisir", "achats.saisir", "referentiels.saisir",
         "stock.valider_reception",
     }),
     "comptable": frozenset({

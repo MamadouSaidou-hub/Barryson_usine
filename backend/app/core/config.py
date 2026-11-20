@@ -36,6 +36,9 @@ class Settings(BaseSettings):
 
     # Requetes plus grosses refusees avant lecture (protection memoire).
     taille_max_requete_octets: int = 1_048_576
+    # Niveau 1 du stock : prevu dans le schema, inactif tant que l'usine achete
+    # tout sous forme de semi-finis (reunion usine du 2026-11-19).
+    niveau_matiere_premiere_actif: bool = False
     # Roles tenus de valider un code a usage unique a la connexion.
     roles_double_facteur: list[str] = sorted(ROLES_DOUBLE_FACTEUR_MINIMUM)
 

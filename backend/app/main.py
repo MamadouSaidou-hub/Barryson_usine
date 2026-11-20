@@ -6,8 +6,10 @@ from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.db import engine
+from app.core.erreurs import installer_gestionnaire
 from app.core.securite_http import installer_securite_http
 from app.modules.identite import routes as identite
+from app.modules.referentiel import routes as referentiel
 
 settings = get_settings()
 
@@ -21,8 +23,9 @@ app = FastAPI(
 )
 
 installer_securite_http(app, settings)
-identite.installer_gestionnaires(app)
+installer_gestionnaire(app)
 app.include_router(identite.router)
+app.include_router(referentiel.router)
 
 
 @app.get("/healthz", tags=["Supervision"])
