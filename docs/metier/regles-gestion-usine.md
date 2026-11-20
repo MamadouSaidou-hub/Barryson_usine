@@ -115,6 +115,32 @@ Rubans imprimés : couleur d'impression (rouge/noir/bleu) + module (45/48/70).
 Finitions jaune transparent, transparent clair, or transparent, kaki simple :
 même processus, la couleur dépend de la bobine sélectionnée.
 
+**Confirmation terrain (réunion usine, 2026-11-19, photos à l'appui)** — ce
+point était resté flou depuis le début et vient d'être clarifié avec les
+responsables : **il n'y a pas de fabrication/enduction sur site pour la
+famille ruban BOPP**. Les bobines jumbo sont achetées déjà enduites en Chine
+(étiquette fournisseur relevée : « BOPP TAPE JUMBO ROLL, SIZE 50MIC×1280MM×
+4002M, Transparent Golden Yellow, G.W. 255, N.W. 251.4, ROLL NO. 65 » — même
+structure que les exemples de colisage §7.2). Le site ne fait que :
+1. **Refendage** (slitting) du jumbo 1280 mm sur une rembobineuse dédiée —
+   c'est très exactement ce que modélise déjà la formule §5.3/§5.4 : le
+   nombre de **pièces par tour** correspond physiquement au nombre de bandes
+   découpées simultanément dans la largeur du jumbo (ex. 1280 mm / 45 mm ≈ 28
+   bandes, ce qui recoupe la valeur déjà connue pour 45 mm). Rien à changer
+   dans le modèle de données ou les formules — c'est une confirmation, pas
+   une correction.
+2. **Conditionnement** — bobines finies emballées, étiquetées et cartonnées
+   (cartons « Barryson Adhésif »).
+
+Donc le **niveau 1 « matière première »** du modèle de stock (§7.1) ne
+concerne **que** la famille colle papier/tubes (papier gris-gris, colle
+liquide, papier logo/blanc → mandrins longs) — jamais le ruban BOPP, dont le
+jumbo entre directement en stock **niveau 2** par achat/réception conteneur,
+exactement comme déjà décrit en §7.2 et §9 (achats). Les tubes/mandrins vus
+en photo (déjà découpés à longueur courte, logo imprimé) confirment aussi
+qu'il existe une étape de découpe des mandrins longs en segments courts sur
+site, cohérente avec §5.6/§7.2 (paniers de pièces découpées par dimension).
+
 ### 5.2 Cycle de vie d'un ordre de fabrication (machine à états à implémenter telle quelle)
 
 | Statut | Déclenché par | Intervenant |
@@ -182,16 +208,35 @@ comme disponible. **Prévu en évolution** : option paramétrable pour activer
 la mesure du métrage restant plus tard — ne pas fermer le schéma, prévoir le
 champ mais pas l'UI v1.
 
-### 5.6 Mandrins, colles papier, tubes papier
+### 5.6 Tubes papier (mandrins) et « colle papier »
 
-Mandrins longs = papier gris-gris + colle liquide + papier logo/blanc. Ils
-alimentent les paniers de pièces découpées (par découpe) et peuvent aller
-directement en fabrication de colle papier. **Recettes de la colle papier et
-des tubes papier toujours à documenter** — c'est désormais une fiche à
-remplir par le DG (voir `fiche-collecte-infos-manquantes-Barryson.docx`,
-déjà transmise), le cahier des charges officiel le confirme explicitement
-(section 19 : « voir fiche finale d'informations à compléter fournie par le
-DG »).
+**Correction terrain (réunion usine, 2026-11-19, confirmée par la
+direction)** — cette section était fausse dans les versions précédentes et
+vient d'être corrigée. Il n'y a **aucune fabrication de mandrins/tubes sur
+site** : les tubes en papier sont **achetés déjà fabriqués**, exactement
+comme les bobines jumbo BOPP (même logique d'approvisionnement, probablement
+même origine). Un tube papier n'est rien d'autre que le **noyau rigide sur
+lequel le ruban découpé est enroulé** — ce n'est pas un produit fabriqué à
+partir de papier gris-gris + colle liquide comme supposé initialement.
+
+Conséquence directe : **il n'existe pas de « recette colle papier/tubes
+papier » à obtenir du DG** — ce point, identifié comme le plus fragile du
+projet, est caduc. Ce qui reste réellement à obtenir est beaucoup plus
+simple : une **nomenclature** (quelle référence de tube correspond à quel
+modèle/moule de ruban), pas une formule de fabrication. Le champ
+correspondant dans `fiche-collecte-infos-manquantes-Barryson.docx` reste
+pertinent mais sa portée est réduite à cette association référentielle.
+
+Processus physique réel, confirmé par les responsables et les photos
+transmises : sélection du **moule**, du **modèle** et de la **couleur** →
+**découpage** (refendage du jumbo BOPP acheté, cf. §5.1) → **assemblage**
+(le ruban découpé est enroulé sur le tube papier acheté — opération réalisée
+en une seule passe sur la rembobineuse/refendeuse, pas une étape séparée
+dans le cycle de vie de l'OF) → **conditionnement** (cartons). Le tube
+papier est donc un **composant semi-fini acheté, consommé à l'assemblage**,
+au même titre qu'une bobine BOPP consommée au découpage — à modéliser comme
+une ligne de nomenclature du modèle (§5.1), pas comme une transformation
+matière première.
 
 ### 5.7 Fonctions complémentaires attendues
 
@@ -216,17 +261,36 @@ ancienneté des encours.
 
 ### 7.1 Niveau 1 — matières premières
 
-Papier gris-gris, colle liquide, papier logo/blanc. Réception enregistrée
-avec article, unité de gestion, quantité, date, fournisseur, justificatif,
-lot si applicable. Consommation enregistrée à la fabrication des mandrins
-longs.
+**Mis à jour suite à la réunion usine du 2026-11-19** : contrairement à ce
+qui était supposé dans les premières versions de ce document, **aucune
+transformation de matière première n'a lieu sur le site de Barryson**. Tout
+ce qui entre en production (bobines jumbo BOPP, tubes papier, plastiques
+d'emballage, étiquettes, cartons vides, rouleaux d'aluminium) est acheté
+déjà sous forme de semi-fini et entre directement en **stock niveau 2**
+(réception conteneur/fournisseur). Le site fait uniquement : découpage,
+assemblage, conditionnement.
 
-### 7.2 Niveau 2 — semi-finis et bobines BOPP
+**Décision confirmée (2026-11-19)** : le niveau 1 « matière première » n'a
+**aucun cas d'usage actuel** pour Barryson, et ce n'est pas une question en
+attente de réponse du DG — c'est tranché. Mais le schéma de stock à 3
+niveaux **doit rester générique et prévu dans le modèle de données**, au cas
+où l'usine déciderait un jour de reprendre une fabrication à partir de
+matière première (ex. remonter la chaîne, produire elle-même le ruban ou les
+tubes plutôt que les acheter déjà semi-finis). Concrètement : le niveau 1
+existe dans le schéma (table articles avec `niveau_stock = matiere_premiere`
+disponible, mouvements de stock génériques déjà conçus pour n'importe quel
+niveau), mais **sans écran ni module dédié tant qu'aucun article réel n'y est
+rattaché** — activable plus tard sans migration de schéma, juste en créant
+des articles à ce niveau et en ouvrant l'écran correspondant.
 
-Contenu : mandrins longs, paniers de pièces découpées par dimension, bobines
-BOPP, tubes PVC électriques, plastiques d'emballage rubans, plastiques PVC,
-étiquettes de départ, colles papier, rouleaux d'aluminium, **cartons vides**
-(nouveau dans cette version).
+### 7.2 Niveau 2 — semi-finis achetés et bobines BOPP
+
+Contenu : **tubes papier (mandrins, achetés déjà fabriqués — §5.6)**,
+paniers de pièces découpées par dimension, bobines BOPP, tubes PVC
+électriques, plastiques d'emballage rubans, plastiques PVC, étiquettes de
+départ, rouleaux d'aluminium, cartons vides. Tous ces articles sont achetés
+sous forme de semi-finis prêts à l'emploi — aucun n'est fabriqué à partir de
+matière première sur site (§7.1).
 
 Bobine BOPP = un enregistrement par (lot du conteneur, numéro fournisseur de
 la bobine). Champs : lot, numéro fournisseur, poids (kg), métrage propre (m),
@@ -238,6 +302,28 @@ doublons, contrôle de cohérence (poids/métrage/finition), rapport d'erreurs,
 **validation par le responsable stock avant création des bobines**. Chaque
 transformation (consommation → production) enregistrée avec lien vers l'OF
 et les articles d'origine.
+
+Deux exemples réels de packing list fournisseur ont été transmis
+(`docs/metier/exemples/colisage-exemple-poids-net.csv` et
+`colisage-exemple-metrage-poids-brut.csv`, un même conteneur). Ils confirment
+le principe mais révèlent que **le format n'est pas standardisé d'une feuille
+à l'autre** :
+- la première feuille numérote les bobines en séquence (1 à 102) avec un nom
+  de finition déjà lisible (Gold transparent, Jaune transparent, Clair
+  transparent, Kaki simple) et un poids net ;
+- la seconde donne le métrage et un poids brut par bobine, sans numéro de
+  bobine, regroupées par **code couleur fournisseur** (Golden01, Golden03,
+  Yellowish, Clear White, Brown) distinct du nom de finition lisible, et en
+  nombre différent de lignes (~89 vs 102) — donc pas de clé commune évidente
+  entre les deux feuilles pour une même bobine physique.
+
+Conséquence technique : l'import ne doit pas supposer un schéma de colonnes
+fixe ni une correspondance 1-pour-1 entre feuilles d'un même classeur.
+L'écran d'aperçu doit permettre de **mapper manuellement les colonnes** reçues
+vers les champs internes (lot, numéro bobine, poids, métrage, couleur/
+finition), et si plusieurs feuilles sont fournies pour un même conteneur,
+le rapprochement entre elles reste **manuel/assisté**, pas automatique, tant
+qu'aucune clé fiable commune n'est confirmée par le fournisseur.
 
 ### 7.3 Niveau 3 — produits finis
 
@@ -435,13 +521,17 @@ de créances.
 Le cahier des charges officiel renvoie explicitement à la fiche déjà
 transmise (`fiche-collecte-infos-manquantes-Barryson.docx`). À compléter
 dans cette fiche ou à ajouter si absent :
-- recettes colle papier et tubes papier (rendements inclus) — toujours le
-  point le plus bloquant ;
+- ~~recettes colle papier et tubes papier~~ — **caduc** : confirmé en
+  réunion usine (2026-11-19) qu'il n'y a pas de fabrication matière première
+  sur site (§5.6/§7.1). Remplacé par un besoin bien plus simple : la
+  **nomenclature référence tube papier ↔ modèle/moule de ruban** (quel tube
+  va avec quel modèle), à ajouter si absent de la fiche existante ;
 - pièces par carton pour les références BOPP/masquage encore incomplètes
   (§8 ci-dessus) et confirmation des dimensions PVC électrique ;
 - méthode de valorisation des stocks / coût de revient ;
 - seuils financiers de validation et délégataires/remplaçants ;
-- mode d'échange avec Sage (import/export/interface/saisie) ;
+- mode d'échange avec Sage (import/export/interface/saisie) — non
+  prioritaire (cf. échanges précédents) ;
 - inventaire physique d'ouverture, validé par le DG.
 
 ## 19. Recette — scénarios à transformer en tests
