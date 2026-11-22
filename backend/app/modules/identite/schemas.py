@@ -73,6 +73,8 @@ class ReponseSession(BaseModel):
     permissions_deleguees: list[str] = []
     # Vrai : seul l'ecran de configuration du second facteur est utilisable.
     double_facteur_a_configurer: bool
+    # Faux en phase de developpement : plus de circuit de validation, l'interface s'allege.
+    validations_actives: bool = True
     # A renvoyer dans l'en-tete X-CSRF-Token de toute requete qui modifie quelque chose.
     csrf_token: str
 
@@ -130,3 +132,14 @@ class DelegationPublic(BaseModel):
     cree_le: datetime
     revoquee_le: datetime | None
     revoquee_par: uuid.UUID | None
+
+
+class EntreeAnnuaire(BaseModel):
+    """Nom et fonction seulement : de quoi afficher « validé par ... », rien de sensible."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nom: str
+    role: str
+    actif: bool

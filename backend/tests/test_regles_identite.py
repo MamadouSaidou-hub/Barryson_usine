@@ -50,12 +50,16 @@ def test_l_administrateur_ne_voit_ni_la_paie_ni_l_audit_metier():
 
 
 @pytest.mark.parametrize("role,permission,attendu", [
-    ("chef_production", "production.valider", True),
+    ("chef_production", "production.valider", False),
+    ("dg", "production.valider", True),
     ("chef_production", "stock.saisir", False),
     ("responsable_stock", "stock.valider_reception", True),
     ("responsable_stock", "stock.valider_ajustement", False),
     ("responsable_stock", "stock.valider_entree_directe", False),
     ("dg", "stock.valider_entree_directe", True),
+    ("dg", "doctor_rewinder.valider", True),
+    ("chef_production", "doctor_rewinder.valider", False),
+    ("chef_production", "doctor_rewinder.consulter", True),
     ("directeur_commercial", "ventes.valider_conditions", True),
     ("directeur_commercial", "ventes.valider_engagement", False),
     ("comptable", "finances.valider", False),
@@ -66,9 +70,10 @@ def test_matrice_points_cles(role, permission, attendu):
     assert a_la_permission(role, permission) is attendu
 
 
-def test_seuls_le_comptable_et_rh_n_ont_aucune_validation():
+def test_seuls_le_chef_le_comptable_rh_et_l_admin_n_ont_aucune_validation():
+    # Le chef de production saisit (resultats, traitement Doctor Rewinder) ; le DG ou son delegataire valide.
     sans_validation = {r for r, d in matrice().items() if not any(".valider" in p for p in d)}
-    assert sans_validation == {"comptable", "responsable_rh", "administrateur"}
+    assert sans_validation == {"chef_production", "comptable", "responsable_rh", "administrateur"}
 
 
 def test_une_permission_mal_orthographiee_casse_au_demarrage():
@@ -141,7 +146,8 @@ def test_la_production_refuse_les_valeurs_par_defaut():
 
 
 _PROD = {"environment": "production", "secret_key": "k" * 40, "postgres_password": "fort-et-long",
-         "postgres_app_password": "autre-et-long", "hotes_autorises": ["erp.exemple.com"]}
+         "postgres_app_password": "autre-et-long", "hotes_autorises": ["erp.exemple.com"],
+         "roles_double_facteur": ["dg", "administrateur"]}
 
 
 def test_la_production_impose_le_cookie_securise_et_ferme_la_documentation():

@@ -1,0 +1,572 @@
+/* ==========================================================================================
+   Barryson ERP — habillage.
+   Toute l'identite visuelle tient dans les variables ci-dessous : couleurs, rayons, polices.
+   Pour redessiner l'interface, modifier ce bloc (et seulement lui) suffit.
+   ========================================================================================== */
+:root {
+  --police: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --police-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --couleur-primaire: #2f6b1f;
+  --couleur-primaire-fonce: #234f17;
+  --couleur-primaire-claire: #e8f2e1;
+  --couleur-sur-primaire: #ffffff;
+
+  --fond: #f4f6f2;
+  --carte: #ffffff;
+  --barre: #1f2a1c;
+  --barre-texte: #d9e2d3;
+  --barre-actif: #2f6b1f;
+  --bordure: #dce3d8;
+  --texte: #1b231a;
+  --texte-doux: #5a665a;
+
+  --ok: #1e7a34;
+  --ok-fond: #e5f4e8;
+  --info: #0b5cab;
+  --info-fond: #e4eefa;
+  --alerte: #8a5a00;
+  --alerte-fond: #fbf1d9;
+  --danger: #b3261e;
+  --danger-fond: #fbe7e5;
+
+  --rayon: 10px;
+  --rayon-petit: 6px;
+  --ombre: 0 1px 2px rgba(20, 30, 20, 0.07);
+  --largeur-menu: 248px;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#racine {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: var(--police);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--texte);
+  background: var(--fond);
+}
+h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+a {
+  color: var(--couleur-primaire);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* ----- Structure ------------------------------------------------------------------------ */
+.application {
+  display: grid;
+  grid-template-columns: var(--largeur-menu) 1fr;
+  min-height: 100%;
+}
+.menu {
+  background: var(--barre);
+  color: var(--barre-texte);
+  padding: 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.menu .marque {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #fff;
+  padding: 4px 10px 14px;
+}
+.menu .marque small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--barre-texte);
+  opacity: 0.8;
+}
+.menu a {
+  color: var(--barre-texte);
+  padding: 9px 12px;
+  border-radius: var(--rayon-petit);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.menu a:hover {
+  background: rgba(255, 255, 255, 0.07);
+  text-decoration: none;
+}
+.menu a.actif {
+  background: var(--barre-actif);
+  color: #fff;
+}
+.menu .groupe {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+  padding: 14px 12px 4px;
+}
+.menu .pied {
+  margin-top: auto;
+  padding: 12px 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.85rem;
+}
+.menu .pied button {
+  margin-top: 8px;
+}
+.contenu {
+  padding: 26px 32px 60px;
+  max-width: 1280px;
+  width: 100%;
+}
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.page-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.soustitre {
+  color: var(--texte-doux);
+  margin: 4px 0 0;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.actions.droite {
+  justify-content: flex-end;
+}
+
+/* ----- Cartes, grilles ---------------------------------------------------------------------- */
+.carte {
+  background: var(--carte);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  padding: 18px;
+}
+.carte-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+.grille {
+  display: grid;
+  gap: 16px;
+}
+.grille.deux {
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+.grille.quatre {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.indicateur {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.indicateur .valeur {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.indicateur .legende {
+  color: var(--texte-doux);
+  font-size: 0.85rem;
+}
+.vide {
+  color: var(--texte-doux);
+  padding: 8px 2px;
+  margin: 0;
+}
+
+/* ----- Tableaux --------------------------------------------------------------------------------- */
+.tableau-conteneur {
+  overflow-x: auto;
+}
+.tableau {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.93rem;
+}
+.tableau th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texte-doux);
+  font-weight: 600;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--bordure);
+  white-space: nowrap;
+}
+.tableau td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--bordure);
+  vertical-align: middle;
+}
+.tableau tr:last-child td {
+  border-bottom: none;
+}
+.tableau .droite,
+.droite {
+  text-align: right;
+}
+.tableau tr.cliquable:hover td {
+  background: var(--couleur-primaire-claire);
+  cursor: pointer;
+}
+.tableau .mono,
+.mono {
+  font-family: var(--police-mono);
+  font-size: 0.88rem;
+}
+.tableau tr.attention td {
+  background: var(--alerte-fond);
+}
+
+/* ----- Badges, alertes ------------------------------------------------------------------------------ */
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-neutre {
+  background: #e8ece5;
+  color: #3b463a;
+}
+.badge-ok {
+  background: var(--ok-fond);
+  color: var(--ok);
+}
+.badge-info {
+  background: var(--info-fond);
+  color: var(--info);
+}
+.badge-alerte {
+  background: var(--alerte-fond);
+  color: var(--alerte);
+}
+.badge-danger {
+  background: var(--danger-fond);
+  color: var(--danger);
+}
+.alerte {
+  padding: 10px 14px;
+  border-radius: var(--rayon-petit);
+  border: 1px solid transparent;
+}
+.alerte-danger {
+  background: var(--danger-fond);
+  color: var(--danger);
+  border-color: #f0c4c0;
+}
+.alerte-alerte {
+  background: var(--alerte-fond);
+  color: var(--alerte);
+  border-color: #ecd9a4;
+}
+.alerte-info {
+  background: var(--info-fond);
+  color: var(--info);
+  border-color: #bcd3ee;
+}
+.alerte-ok {
+  background: var(--ok-fond);
+  color: var(--ok);
+  border-color: #b9dec1;
+}
+.alerte ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+/* ----- Formulaires ------------------------------------------------------------------------------------- */
+.formulaire {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.formulaire .rangee {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.champ-etiquette {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.champ-aide {
+  font-size: 0.8rem;
+  color: var(--texte-doux);
+}
+.champ-erreur {
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+.saisie {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid #c4cdc0;
+  border-radius: var(--rayon-petit);
+  background: #fff;
+  color: var(--texte);
+  width: 100%;
+}
+.saisie:focus,
+.bouton:focus-visible {
+  outline: 2px solid var(--couleur-primaire);
+  outline-offset: 1px;
+}
+textarea.saisie {
+  resize: vertical;
+}
+.case {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.case input {
+  width: 18px;
+  height: 18px;
+}
+
+/* ----- Boutons ----------------------------------------------------------------------------------------------- */
+.bouton {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--rayon-petit);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.bouton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.bouton-primaire {
+  background: var(--couleur-primaire);
+  color: var(--couleur-sur-primaire);
+}
+.bouton-primaire:hover:not(:disabled) {
+  background: var(--couleur-primaire-fonce);
+}
+.bouton-secondaire {
+  background: #fff;
+  color: var(--texte);
+  border-color: #c4cdc0;
+}
+.bouton-secondaire:hover:not(:disabled) {
+  background: var(--couleur-primaire-claire);
+}
+.bouton-danger {
+  background: var(--danger);
+  color: #fff;
+}
+.bouton-lien {
+  background: none;
+  color: var(--couleur-primaire);
+  padding: 4px 6px;
+}
+.menu .bouton-secondaire {
+  background: transparent;
+  color: var(--barre-texte);
+  border-color: rgba(255, 255, 255, 0.3);
+  width: 100%;
+}
+
+/* ----- Fenetres modales ------------------------------------------------------------------------------------------ */
+.voile {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 22, 14, 0.5);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  padding: 16px;
+}
+.modale {
+  background: var(--carte);
+  border-radius: var(--rayon);
+  padding: 22px;
+  width: min(560px, 100%);
+  /* Une fenetre plus haute que l'ecran defile au lieu de deborder. */
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+.modale .rangee {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+/* ----- Ecran de connexion ----------------------------------------------------------------------------------------- */
+.connexion {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: linear-gradient(160deg, var(--couleur-primaire-claire), var(--fond));
+}
+.connexion .carte {
+  width: min(430px, 100%);
+  padding: 28px;
+}
+.connexion h1 {
+  margin-bottom: 4px;
+}
+.secret {
+  font-family: var(--police-mono);
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
+  background: var(--fond);
+  border: 1px dashed #b4c0ae;
+  padding: 10px 12px;
+  border-radius: var(--rayon-petit);
+  word-break: break-all;
+  user-select: all;
+}
+
+/* ----- Etapes, historique ---------------------------------------------------------------------------------------------- */
+.historique {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.historique li {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+.historique .quand {
+  color: var(--texte-doux);
+}
+.definition {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 18px;
+  margin: 0;
+}
+.definition dt {
+  color: var(--texte-doux);
+}
+.definition dd {
+  margin: 0;
+}
+.pastille-decision {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pastille-decision label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-petit);
+  cursor: pointer;
+}
+.pastille-decision label.choisi {
+  border-color: var(--couleur-primaire);
+  background: var(--couleur-primaire-claire);
+}
+
+/* ----- Petits ecrans --------------------------------------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .application {
+    grid-template-columns: 1fr;
+  }
+  .menu {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 10px;
+  }
+  .menu .groupe,
+  .menu .pied {
+    display: none;
+  }
+  .contenu {
+    padding: 18px 14px 50px;
+  }
+}
+
+/* Indicateurs cliquables qui servent aussi de filtre (page des arrivées). */
+button.carte.filtre {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+button.carte.filtre:hover {
+  border-color: var(--couleur-primaire);
+}
+button.carte.filtre.actif {
+  border-color: var(--couleur-primaire);
+  background: var(--couleur-primaire-claire);
+}
+
+/* Details repliables : le courant d abord, le reste a la demande. */
+details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--couleur-primaire);
+  padding: 6px 0;
+}
+
+/* Accueil : liste "A faire". */
+.taches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tache { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--bordure); border-radius: 8px; color: inherit; text-decoration: none; background: var(--carte); }
+.tache:hover { border-color: var(--couleur-primaire); background: var(--couleur-primaire-claire); }
+.tache-nombre { min-width: 38px; text-align: center; font-size: 1.4rem; font-weight: 700; }
+.tache-texte { flex: 1; font-size: 1.05rem; }
+.tache-fleche { color: var(--couleur-primaire); font-weight: 700; }
+.tache-alerte .tache-nombre { color: #b7791f; }
+.tache-danger .tache-nombre { color: #b42318; }

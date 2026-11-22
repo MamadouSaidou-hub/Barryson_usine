@@ -43,6 +43,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-barryson}
       POSTGRES_APP_USER: ${POSTGRES_APP_USER:-barryson_app}
       POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-changeme_app}
+      # Second facteur : desactive en phase de developpement ([] n'est accepte qu'en developpement).
+      # Hors developpement, la configuration exige ["dg","administrateur"] au minimum.
+      ROLES_DOUBLE_FACTEUR: ${ROLES_DOUBLE_FACTEUR:-[]}
+      # Phase de developpement : pas de circuit de validation. Refuse hors developpement (mettre true ailleurs).
+      VALIDATIONS_ACTIVES: ${VALIDATIONS_ACTIVES:-false}
     volumes:
       # Rechargement a chaud en developpement.
       - ./backend:/app

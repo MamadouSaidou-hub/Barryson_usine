@@ -24,7 +24,7 @@ def test_connexion_pose_un_cookie_httponly_strict(client, creer_compte):
     assert "HttpOnly" in cookie and "SameSite=strict" in cookie and "Path=/" in cookie
     corps = reponse.json()
     assert corps["utilisateur"]["role"] == "chef_production"
-    assert "production.valider" in corps["permissions"]
+    assert "production.saisir" in corps["permissions"] and "production.valider" not in corps["permissions"]
     assert "mot_de_passe_hash" not in str(corps) and COOKIE not in str(corps)
     assert client.get("/api/auth/moi").json()["csrf_token"] == corps["csrf_token"]
 

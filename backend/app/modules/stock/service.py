@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.audit import journaliser, maintenant
+from app.core.config import get_settings
 from app.core.erreurs import Conflit, DonneesInvalides, Introuvable, OperationInterdite
 from app.modules.identite import delegations
 from app.modules.identite.models import Utilisateur
@@ -107,6 +108,16 @@ def enregistrer_mouvement(db: Session, acteur: Utilisateur | None, article: Arti
 
 def creer_mouvement_manuel(db: Session, acteur: Utilisateur, donnees: dict[str, Any]) -> MouvementStock:
     type_ = donnees["type"]
+    if not get_settings().validations_actives:
+        # Sans circuit : une entree ou une sortie se saisit et compte tout de suite, sans seconde personne.
+        entree = type_ == "entree_directe" or (type_ == "ajustement" and donnees["sens"] == "plus")
+        article = _article_actif(db, acteur, donnees["article_id"], niveau=None)
+        type_manuel = "entree_manuelle" if entree else "sortie_manuelle"
+        mouvement = enregistrer_mouvement(
+            db, acteur, article, type_manuel, donnees["quantite"], donnees["motif"],
+            piece_justificative_url=donnees.get("piece_justificative_url"))
+        db.commit()
+        return mouvement
     # Entree directe : uniquement des produits finis (cartons deja presents ou ecart d'inventaire).
     article = _article_actif(db, acteur, donnees["article_id"],
                              niveau="produit_fini" if type_ == "entree_directe" else None)

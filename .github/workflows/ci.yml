@@ -75,6 +75,33 @@ jobs:
         working-directory: backend
         run: pytest -q
 
+  interface:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dependances (versions du fichier verrou, rien d'autre)
+        working-directory: frontend
+        run: npm ci
+
+      - name: Auditer les dependances
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: Verifier les types (contrat d'API compris)
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Construire l'interface
+        working-directory: frontend
+        run: npm run build
+
   securite:
     # Gate de l'ADR 0004 : une vulnerabilite haute ou critique corrigeable bloque la fusion.
     # Une derogation doit etre ecrite, motivee et datee dans .trivyignore (racine du depot).
@@ -92,6 +119,15 @@ jobs:
         with:
           scan-type: fs
           scan-ref: backend
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Scanner les dependances de l'interface
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: frontend
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"

@@ -12,6 +12,9 @@ from fastapi import APIRouter, Depends, Query, status
 from app.modules.achats import service
 from app.modules.achats.models import StatutCommande, StatutReception
 from app.modules.achats.schemas import (
+    CatalogueCreation,
+    CatalogueModification,
+    CataloguePublic,
     Commande,
     CommandeCreation,
     CommandeDetail,
@@ -176,3 +179,24 @@ def controler(reception_id: uuid.UUID, demande: ControleDemande, ctx: ControleSt
     return _detail_reception(
         ctx, service.controler(ctx.db, ctx.utilisateur, reception_id, demande.model_dump())
     )
+
+
+# --- Catalogue fournisseur ------------------------------------------------------------------------
+
+
+@router.get("/catalogue-fournisseur", response_model=list[CataloguePublic], tags=["Catalogue fournisseur"])
+def lister_catalogue(ctx: Lecture, fournisseur_id: uuid.UUID | None = None, actif: bool | None = None):
+    return service.lister_catalogue(ctx.db, ctx.utilisateur, fournisseur_id=fournisseur_id, actif=actif)
+
+
+@router.post("/catalogue-fournisseur", response_model=CataloguePublic, status_code=status.HTTP_201_CREATED,
+             tags=["Catalogue fournisseur"])
+def creer_catalogue(demande: CatalogueCreation, ctx: Saisie):
+    return service.creer_catalogue(ctx.db, ctx.utilisateur, demande.model_dump())
+
+
+@router.patch("/catalogue-fournisseur/{entree_id}", response_model=CataloguePublic,
+              tags=["Catalogue fournisseur"])
+def modifier_catalogue(entree_id: uuid.UUID, demande: CatalogueModification, ctx: Saisie):
+    changements = demande.model_dump(exclude_unset=True)
+    return service.modifier_catalogue(ctx.db, ctx.utilisateur, entree_id, changements)

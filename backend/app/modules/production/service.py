@@ -18,6 +18,7 @@ from app.core.config import get_settings
 from app.core.erreurs import Conflit, DonneesInvalides, Introuvable, OperationInterdite
 from app.core.numerotation import prochain_numero
 from app.core.transactions import transactionnel
+from app.modules.doctor_rewinder import service as doctor_rewinder
 from app.modules.identite.models import Utilisateur
 from app.modules.production import calculs
 from app.modules.production.calculs import ErreurCalcul, SaisieResultat
@@ -237,20 +238,36 @@ def soumettre(db: Session, acteur: Utilisateur, ordre_id: uuid.UUID) -> OrdreFab
                                      f"Tubes pour l'ordre {ordre.numero}"):
         alertes.append(_alerte("tubes_insuffisants",
                                f"Stock de tubes disponible inférieur aux {besoin} nécessaires : "
-                               "la sortie créera un stock négatif à régulariser."))
+                               "la sortie sera refusée tant qu'ils ne sont pas là (sauf dérogation du DG)."))
     ordre.alertes = alertes
     _valider_ou_annuler(db)
     return ordre
 
 
 @transactionnel
-def valider_matieres(db: Session, acteur: Utilisateur, ordre_id: uuid.UUID) -> OrdreFabrication:
-    """Sortie des matieres vers la production : tubes pour toutes les pieces prevues."""
+def valider_matieres(db: Session, acteur: Utilisateur, ordre_id: uuid.UUID, *,
+                     derogation_motif: str | None = None) -> OrdreFabrication:
+    """Sortie des matieres vers la production : tubes pour toutes les pieces prevues.
+
+    Refusee si le stock reel ne couvre pas le besoin : on ne sort pas des tubes qui n'existent pas. Seule une
+    derogation motivee (accordee en amont par l'appelant a qui en a le droit) permet de passer outre ; elle
+    est inscrite dans l'historique de l'ordre.
+    """
     ordre = charger(db, acteur, ordre_id, verrou=True)
-    _passer(db, ordre, acteur, ("soumis",), "matieres_validees")
+    _passer(db, ordre, acteur, ("soumis",), "matieres_validees",
+            f"Dérogation, stock de tubes insuffisant : {derogation_motif}" if derogation_motif else None)
     version = version_de(db, ordre)
     tube = db.scalars(select(Article).where(Article.id == version.article_tube_id)).one()
     stock.lever_reservations_ordre(db, acteur, ordre.id)
+    disponible = stock.soldes(db, acteur, article_id=tube.id)[0]["disponible"]
+    besoin = Decimal(ordre.pieces_theoriques)
+    if besoin > disponible and not derogation_motif:
+        db.rollback()
+        present = max(disponible, Decimal(0))
+        present = int(present) if present == present.to_integral() else present
+        raise Conflit(f"Stock de tubes insuffisant : {besoin} nécessaires, {present} "
+                      "disponibles. Enregistrez d'abord l'arrivée des tubes (entrée de stock), ou faites "
+                      "accorder une dérogation par le Directeur général.")
     stock.enregistrer_mouvement(db, acteur, tube, "consommation", Decimal(ordre.pieces_theoriques),
                                 f"Sortie vers l'ordre {ordre.numero}", ordre_fabrication_id=ordre.id)
     db.add(UtilisationBobine(entreprise_id=ordre.entreprise_id, bobine_id=ordre.bobine_id, ordre_id=ordre.id,
@@ -303,7 +320,8 @@ def valider_resultat(db: Session, acteur: Utilisateur, ordre_id: uuid.UUID) -> O
         db.rollback()
         raise Conflit(f"Transition impossible : l'ordre {ordre.numero} est « {ordre.statut} », "
                       "il doit être « resultat_saisi ».")
-    if get_settings().separer_saisie_validation_resultat and ordre.resultat_saisi_par == acteur.id:
+    if (get_settings().validations_actives and get_settings().separer_saisie_validation_resultat
+            and ordre.resultat_saisi_par == acteur.id):
         db.rollback()
         raise OperationInterdite("La validation doit être faite par une autre personne que la saisie.")
     resultat = resultat_calcule(db, ordre)
@@ -346,6 +364,8 @@ def cloturer(db: Session, acteur: Utilisateur, ordre_id: uuid.UUID) -> OrdreFabr
     if quantite:
         stock.enregistrer_mouvement(db, acteur, produit, "entree", Decimal(quantite), motif,
                                     ordre_fabrication_id=ordre.id)
+    # Pieces envoyees a rectifier : un encours est ouvert, suivi jusqu'a son traitement valide.
+    doctor_rewinder.ouvrir_pour_ordre(db, ordre, produit.id, version.pieces_par_carton)
     # Tubes : chaque piece produite en a consomme un ; on corrige l'ecart avec la sortie prevue.
     ecart_tubes = ordre.pieces_brutes - ordre.pieces_theoriques
     if ecart_tubes < 0:

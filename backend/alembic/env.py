@@ -10,6 +10,7 @@ from app.core import audit, numerotation  # noqa: F401
 from app.core.config import get_settings
 from app.core.db import Base
 from app.modules.achats import models as _achats  # noqa: F401
+from app.modules.doctor_rewinder import models as _doctor_rewinder  # noqa: F401
 from app.modules.identite import models  # noqa: F401
 from app.modules.production import models as _production  # noqa: F401
 from app.modules.referentiel import models as _referentiel  # noqa: F401

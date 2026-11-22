@@ -14,6 +14,9 @@ select = ["E", "F", "I", "UP", "B"]
 "alembic/versions/*" = ["E501", "F401", "I001"]
 # Les tests alignent des assertions et des jeux de donnees : on ne les coupe pas artificiellement.
 "tests/*" = ["E501"]
+# Les fixtures de l'atelier de production sont importees telles quelles : pytest les redefinit en parametres.
+"tests/test_doctor_rewinder.py" = ["F811"]
+"tests/test_sans_circuit.py" = ["F811"]
 
 [tool.ruff.lint.isort]
 # Le dossier local "alembic/" ferait passer le paquet alembic pour du code

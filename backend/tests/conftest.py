@@ -95,6 +95,18 @@ def _sans_double_facteur_par_defaut(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(get_settings(), "roles_double_facteur", [])
 
 
+@pytest.fixture(autouse=True)
+def _circuits_de_validation_actifs(monkeypatch: pytest.MonkeyPatch) -> None:
+    # La base de developpement tourne sans circuit (VALIDATIONS_ACTIVES=false) : les tests, eux, verifient
+    # les regles strictes. Les tests de test_sans_circuit.py les desactivent explicitement.
+    monkeypatch.setattr(get_settings(), "validations_actives", True)
+
+
+@pytest.fixture
+def sans_circuit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "validations_actives", False)
+
+
 @pytest.fixture
 def client(db: Session) -> Iterator[TestClient]:
     def _get_db() -> Iterator[Session]:

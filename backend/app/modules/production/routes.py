@@ -7,9 +7,9 @@ generique sur le statut. Chaque transition exige son propre droit.
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
-from app.modules.identite.dependances import Contexte, exiger
+from app.modules.identite.dependances import Contexte, contexte_actif, exiger
 from app.modules.production import service
 from app.modules.production.models import StatutOF
 from app.modules.production.schemas import (
@@ -22,6 +22,7 @@ from app.modules.production.schemas import (
     PrevisionPublic,
     ResultatCalcule,
     ResultatSaisie,
+    SortieMatieres,
 )
 
 router = APIRouter(prefix="/api", tags=["Production"])
@@ -29,7 +30,6 @@ router = APIRouter(prefix="/api", tags=["Production"])
 Lecture = Annotated[Contexte, Depends(exiger("production.consulter"))]
 Saisie = Annotated[Contexte, Depends(exiger("production.saisir"))]
 Validation = Annotated[Contexte, Depends(exiger("production.valider"))]
-Sortie = Annotated[Contexte, Depends(exiger("stock.executer_sortie"))]
 Cloture = Annotated[Contexte, Depends(exiger("production.cloturer"))]
 Annule = Annotated[Contexte, Depends(exiger("production.annuler"))]
 
@@ -83,8 +83,15 @@ def soumettre(ordre_id: uuid.UUID, ctx: Saisie):
 
 
 @router.post("/ordres-fabrication/{ordre_id}/valider-matieres", response_model=OrdreDetail)
-def valider_matieres(ordre_id: uuid.UUID, ctx: Sortie):
-    return _detail(ctx, service.valider_matieres(ctx.db, ctx.utilisateur, ordre_id))
+def valider_matieres(ordre_id: uuid.UUID, request: Request,
+                     base: Annotated[Contexte, Depends(contexte_actif)],
+                     demande: SortieMatieres | None = None):
+    """Sortie des tubes. Normale : responsable stock. Avec derogation (stock insuffisant) : DG ou
+    delegataire, meme droit que les sorties exceptionnelles : sortir ce qui n'est pas en stock engage l'usine.
+    """
+    motif = demande.derogation_motif if demande else None
+    ctx = exiger("stock.valider_sortie_exceptionnelle" if motif else "stock.executer_sortie")(request, base)
+    return _detail(ctx, service.valider_matieres(ctx.db, ctx.utilisateur, ordre_id, derogation_motif=motif))
 
 
 @router.post("/ordres-fabrication/{ordre_id}/demarrer", response_model=OrdreDetail)

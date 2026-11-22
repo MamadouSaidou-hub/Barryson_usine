@@ -592,7 +592,7 @@ vérifie l'état courant (409 sinon), le droit de l'appelant, et s'inscrit dans
 | POST | `…/valider-matieres` | `stock.executer_sortie` (resp. stock) | soumis → matières validées : sortie des tubes |
 | POST | `…/demarrer` | `production.saisir` | matières validées → en cours |
 | PUT | `…/resultat` | `production.saisir` | en cours / résultat saisi → résultat saisi |
-| POST | `…/valider-resultat` | `production.valider` (chef de production) | résultat saisi → résultat validé |
+| POST | `…/valider-resultat` | `production.valider` (DG ou son délégataire ; jamais la personne qui a saisi) | résultat saisi → résultat validé |
 | POST | `…/cloturer` | `production.cloturer` (resp. stock) | résultat validé → clôturé : entrée des produits finis |
 | POST | `…/annuler` | `production.annuler` (DG) | tout état non terminal → annulé, `motif` obligatoire |
 
@@ -620,9 +620,11 @@ double comptage). Seule la **validation** exige un comptage cohérent. La saisie
 se corrige tant que rien n'est validé (chaque correction est tracée).
 
 **Stock** : à la soumission, réservation d'un tube par pièce prévue ; si le
-disponible est insuffisant, **avertissement** `tubes_insuffisants` et pas de
-blocage (stock négatif jamais bloquant, décision 0003). À la validation des
-matières, sortie des tubes (`consommation`, lien `ordre_fabrication_id`) et
+disponible est insuffisant, **avertissement** `tubes_insuffisants`. À la validation
+des matières, la sortie est **refusée (409)** si le stock ne couvre pas le besoin,
+sauf **dérogation motivée** du DG ou de son délégataire (`derogation_motif`,
+droit `stock.valider_sortie_exceptionnelle`, tracée dans l'historique ; voir
+décision 0003). Sinon, sortie des tubes (`consommation`, lien `ordre_fabrication_id`) et
 levée de la réservation. À la clôture : entrée des produits finis (jamais
 saisie à la main), puis régularisation des tubes sur les pièces réellement
 produites (`retour` ou `consommation` de l'écart). À l'annulation après sortie
@@ -645,7 +647,7 @@ au carton (les pièces restantes restent un reliquat visible sur l'ordre :
 - la **formule du résultat réel** (§6.4), à reconfirmer en atelier.
 
 Les quantités envoyées au Doctor Rewinder sont enregistrées dans le résultat
-de l'ordre ; le suivi des encours (M07) est le prochain module.
+de l'ordre ; à la clôture, elles ouvrent un dossier d'encours (§7).
 
 Testé sous charge réelle : 8 créations simultanées sur 8 bobines et 6 sur une
 même bobine → 9 ordres, 5 refus propres, numéros contigus sans doublon ; 6
@@ -665,6 +667,50 @@ définitive, pas de mouvement de stock PF.
 Indicateurs à exposer au cockpit (§9) : encours en cours (somme non
 traitée), taux de récupération (`recuperee / envoyee`), délai moyen de
 traitement, ancienneté du plus vieil encours non traité.
+
+### 7.1 Implémentation livrée (2026-11-22) — contrat pour l'interface
+
+Un dossier est **ouvert automatiquement à la clôture** de l'ordre qui a envoyé
+des pièces (`quantite_doctor_rewinder > 0`), jamais saisi à la main ; un seul
+dossier par ordre (unicité en base). Il ne se supprime pas (droit retiré au
+compte applicatif) et chaque modification passe par le journal d'audit.
+Statuts : `en_cours` (pièces parties) → `a_valider` (retour déclaré) →
+`traite` (validé). Contraintes en base : récupérées + non récupérables =
+envoyées ; un dossier `traite` porte son valideur.
+
+| Méthode | Chemin | Droit | Effet |
+|---|---|---|---|
+| GET | `/api/doctor-rewinder` (`?statut=&ordre_id=`), `/{id}` | `doctor_rewinder.consulter` | liste / détail |
+| GET | `/api/doctor-rewinder/indicateurs` | `doctor_rewinder.consulter` | pièces en cours, à valider, taux de récupération, délai moyen, ancienneté ; `plus_ancien_id` pour descendre au dossier |
+| PUT | `…/{id}/traitement` | `production.saisir` (chef) | déclare récupérées + non récupérables (somme = envoyées, sinon 400) : `en_cours` → `a_valider` |
+| POST | `…/{id}/valider` | `doctor_rewinder.valider` (**DG ou son délégataire**) | `a_valider` → `traite` : entrée en stock des pièces récupérées ; jamais par celui qui a déclaré (403) |
+| POST | `…/{id}/renvoyer` | `doctor_rewinder.valider` | `a_valider` → `en_cours`, `motif` obligatoire |
+
+**Choix confirmé par le client (2026-11-22)** : la validation revient au DG, ou à son délégataire s'il la délègue. La matrice officielle donne la
+validation au chef de production ; elle est confiée au DG (délégable), comme
+la validation du résultat de fabrication, pour que la personne qui déclare ne
+soit pas celle qui valide. Retour en arrière : une ligne dans `permissions.py`.
+
+**Entrée en stock** : un mouvement `entree` lié à l'ordre, uniquement à la
+validation. Article géré au carton : cartons complets seulement ; les pièces
+qui n'en font pas un sont un **reliquat** (`pieces_reliquat`), visible sur le
+dossier mais pas encore repris en stock. Question ouverte : où va ce reliquat
+(recomplété par un ordre suivant, ou entrée en pièces) ?
+
+### 7.2 Principe d'ergonomie : ultra simple (exigence du client, 2026-11-22)
+
+L'outil doit être **très facile à utiliser, sans rien de compliqué**, comme le prototype. Appliqué :
+
+- **Menu court** : Accueil, Commander, Recevoir, Stock, Production (+ Doctor Rewinder), puis « Réglages ».
+- **Accueil « À faire »** : la liste de ce que *cette* personne doit faire (selon ses droits), un clic pour y aller.
+- **Stock** : une quantité par produit, deux boutons **Entrée** et **Sortie** ; le type technique du mouvement est déduit, la raison se choisit dans une liste. La confirmation par une autre personne reste exigée.
+- **Commande** : fournisseur et devise d'abord ; taux, date, référence et commentaire sous « Plus d'options ». Le **prix habituel du catalogue** (`prix_unitaire` + `devise_prix`, les deux ensemble) est proposé, dans sa devise seulement, et reste modifiable.
+- **Réception en un seul écran, depuis la commande** (« Recevoir ») : le tableau reprend ce qui a été commandé, avec le reste à recevoir et la quantité reçue (préremplie, modifiable). Une **case « Conforme » par ligne**, « Tout cocher », et les documents en dernière ligne. Une ligne décochée demande le problème et la quantité conforme gardée ; pour des bobines, les numéros refusés (la packing list se colle sous le tableau). Un seul bouton enregistre **l'arrivée et le contrôle** d'un coup. La décision (acceptée / avec réserves / refusée) se **déduit** de ce qui est coché ; « Refuser toute la marchandise » reste à part. Sans le droit de contrôler, la personne enregistre seulement l'arrivée et le contrôle se fait depuis la liste.
+- **Ordre de fabrication** : chaque écran dit « Étape N sur 6 » et **qui** doit agir ensuite.
+
+**Phase de développement : sans circuit de validation (décision du client, 2026-11-22).** Le réglage `VALIDATIONS_ACTIVES=false` (défaut du `docker-compose.yml` de développement) supprime les blocages : une commande d'achat s'enregistre et se passe au fournisseur d'un coup ; une entrée ou sortie de stock compte tout de suite (types `entree_manuelle` / `sortie_manuelle`, sans seconde personne) ; celui qui saisit un résultat de fabrication ou un retour Doctor Rewinder peut le valider et clôturer. Les rôles, l'audit et les contrôles de cohérence (quantités, stock insuffisant…) restent. La configuration **refuse de démarrer** avec ce réglage hors développement : les circuits (DG valide, séparation saisie/validation, délégations) reviennent en remettant `VALIDATIONS_ACTIVES=true`, sans rien à reconstruire. Les tests vérifient les deux modes (`tests/test_sans_circuit.py`).
+
+Règle pour la suite : un geste principal par écran, des mots de l'usine, retirer une option plutôt que d'en ajouter. Seul l'affichage se simplifie : aucune règle de sécurité (séparation des tâches, validations) n'est assouplie.
 
 ## 8. Ventes et suivi commercial (M09/M10)
 

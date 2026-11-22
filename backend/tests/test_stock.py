@@ -513,6 +513,30 @@ def test_import_d_un_conteneur_reel_sans_metrage(client, en_tant_que, base):
     assert len(kaki) == 7 and all(b["metrage_propre"] is None for b in kaki)
 
 
+def test_import_du_vrai_fichier_du_fournisseur_chinois(client, en_tant_que, base):
+    """Packing list reelle (102 bobines BOPP) : totaux de reference, aucune anomalie, finitions et metrages."""
+    from app.donnees_demo import lignes_packing_list_102
+
+    entetes = en_tant_que("responsable_stock")
+    lignes = lignes_packing_list_102()
+    corps = client.post("/api/imports-colisage", headers=entetes, json=_import(base, "CONT-REEL", lignes)).json()
+    assert (corps["nb_lignes"], corps["nb_bloquantes"], corps["nb_avertissements"]) == (102, 0, 0)
+    assert client.post(f"/api/imports-colisage/{corps['id']}/valider", headers=entetes).status_code == 200
+
+    bobines = client.get("/api/bobines", params={"limite": 200}).json()
+    assert len(bobines) == 102 and _solde(client, base["jumbo"])["physique"] == 102.0
+    assert round(sum(float(b["poids_kg"]) for b in bobines), 1) == 25666.8
+    assert sum(float(b["metrage_propre"]) for b in bobines) == 408590
+    par_finition = {f: sum(1 for b in bobines if b["couleur_finition"] == f)
+                    for f in ("or_transparent", "jaune_transparent", "transparent_clair", "kaki_simple")}
+    assert par_finition == {"or_transparent": 60, "jaune_transparent": 20, "transparent_clair": 15,
+                            "kaki_simple": 7}
+    # La reference couleur du fournisseur reste consultable : Golden01 (40) et Golden03 (20).
+    detail = client.get(f"/api/imports-colisage/{corps['id']}").json()["lignes"]
+    assert sum("Golden01" in (ligne["couleur_brute"] or "") for ligne in detail) == 40
+    assert sum("Golden03" in (ligne["couleur_brute"] or "") for ligne in detail) == 20
+
+
 def test_import_trop_gros_ou_mal_forme_refuse(client, en_tant_que, base):
     entetes = en_tant_que("responsable_stock")
     assert client.post("/api/imports-colisage", headers=entetes, json=_import(base, lignes=[])).status_code == 422
