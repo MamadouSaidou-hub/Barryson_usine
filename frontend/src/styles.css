@@ -552,3 +552,21 @@ button.carte.filtre.actif {
   border-color: var(--couleur-primaire);
   background: var(--couleur-primaire-claire);
 }
+
+/* Details repliables : le courant d abord, le reste a la demande. */
+details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--couleur-primaire);
+  padding: 6px 0;
+}
+
+/* Accueil : liste "A faire". */
+.taches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tache { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--bordure); border-radius: 8px; color: inherit; text-decoration: none; background: var(--carte); }
+.tache:hover { border-color: var(--couleur-primaire); background: var(--couleur-primaire-claire); }
+.tache-nombre { min-width: 38px; text-align: center; font-size: 1.4rem; font-weight: 700; }
+.tache-texte { flex: 1; font-size: 1.05rem; }
+.tache-fleche { color: var(--couleur-primaire); font-weight: 700; }
+.tache-alerte .tache-nombre { color: #b7791f; }
+.tache-danger .tache-nombre { color: #b42318; }

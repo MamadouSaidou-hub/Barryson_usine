@@ -697,6 +697,21 @@ qui n'en font pas un sont un **reliquat** (`pieces_reliquat`), visible sur le
 dossier mais pas encore repris en stock. Question ouverte : où va ce reliquat
 (recomplété par un ordre suivant, ou entrée en pièces) ?
 
+### 7.2 Principe d'ergonomie : ultra simple (exigence du client, 2026-11-22)
+
+L'outil doit être **très facile à utiliser, sans rien de compliqué**, comme le prototype. Appliqué :
+
+- **Menu court** : Accueil, Commander, Recevoir, Stock, Production (+ Doctor Rewinder), puis « Réglages ».
+- **Accueil « À faire »** : la liste de ce que *cette* personne doit faire (selon ses droits), un clic pour y aller.
+- **Stock** : une quantité par produit, deux boutons **Entrée** et **Sortie** ; le type technique du mouvement est déduit, la raison se choisit dans une liste. La confirmation par une autre personne reste exigée.
+- **Commande** : fournisseur et devise d'abord ; taux, date, référence et commentaire sous « Plus d'options ». Le **prix habituel du catalogue** (`prix_unitaire` + `devise_prix`, les deux ensemble) est proposé, dans sa devise seulement, et reste modifiable.
+- **Réception en un seul écran, depuis la commande** (« Recevoir ») : le tableau reprend ce qui a été commandé, avec le reste à recevoir et la quantité reçue (préremplie, modifiable). Une **case « Conforme » par ligne**, « Tout cocher », et les documents en dernière ligne. Une ligne décochée demande le problème et la quantité conforme gardée ; pour des bobines, les numéros refusés (la packing list se colle sous le tableau). Un seul bouton enregistre **l'arrivée et le contrôle** d'un coup. La décision (acceptée / avec réserves / refusée) se **déduit** de ce qui est coché ; « Refuser toute la marchandise » reste à part. Sans le droit de contrôler, la personne enregistre seulement l'arrivée et le contrôle se fait depuis la liste.
+- **Ordre de fabrication** : chaque écran dit « Étape N sur 6 » et **qui** doit agir ensuite.
+
+**Phase de développement : sans circuit de validation (décision du client, 2026-11-22).** Le réglage `VALIDATIONS_ACTIVES=false` (défaut du `docker-compose.yml` de développement) supprime les blocages : une commande d'achat s'enregistre et se passe au fournisseur d'un coup ; une entrée ou sortie de stock compte tout de suite (types `entree_manuelle` / `sortie_manuelle`, sans seconde personne) ; celui qui saisit un résultat de fabrication ou un retour Doctor Rewinder peut le valider et clôturer. Les rôles, l'audit et les contrôles de cohérence (quantités, stock insuffisant…) restent. La configuration **refuse de démarrer** avec ce réglage hors développement : les circuits (DG valide, séparation saisie/validation, délégations) reviennent en remettant `VALIDATIONS_ACTIVES=true`, sans rien à reconstruire. Les tests vérifient les deux modes (`tests/test_sans_circuit.py`).
+
+Règle pour la suite : un geste principal par écran, des mots de l'usine, retirer une option plutôt que d'en ajouter. Seul l'affichage se simplifie : aucune règle de sécurité (séparation des tâches, validations) n'est assouplie.
+
 ## 8. Ventes et suivi commercial (M09/M10)
 
 Pas de compte utilisateur pour les commerciaux (confirmé, définitif pour la

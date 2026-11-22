@@ -1,170 +1,107 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { lire, requete, type S } from "../api";
 import { useAuth } from "../auth";
-import { ROLES, STATUTS_COMMANDE, STATUTS_MOUVEMENT, TYPES_MOUVEMENT } from "../libelles";
-import { Badge, Carte, Chargement, Page, Tableau as Table, Vide, date, nombre, useAnnuaire, useDonnees } from "../ui";
+import { ROLES } from "../libelles";
+import { Bouton, Carte, Chargement, Page, nombre, useDonnees } from "../ui";
 
-function Indicateur({ valeur, legende, vers, ton }: { valeur: number; legende: string; vers: string; ton?: string }) {
-  return (
-    <Link to={vers} style={{ color: "inherit", textDecoration: "none" }}>
-      <Carte className="indicateur">
-        <span className="valeur" style={ton ? { color: `var(--${ton})` } : undefined}>
-          {nombre(valeur)}
-        </span>
-        <span className="legende">{legende}</span>
-      </Carte>
-    </Link>
-  );
+interface Tache {
+  nombre: number;
+  texte: string;
+  vers: string;
+  ton?: "alerte" | "danger";
 }
 
+// Accueil : ce que CETTE personne a a faire, en clair, un clic pour s'y rendre. Rien d'autre.
 export function Tableau() {
   const { session, peut, peutUn } = useAuth();
-  const nom = useAnnuaire();
+  const aller = useNavigate();
   const utilisateur = session!.utilisateur;
-  const voitAchats = peut("achats.consulter");
-  const voitStock = peut("stock.consulter");
-  const valideAchats = peut("achats.valider");
-  const valideStock = peutUn("stock.valider_ajustement", "stock.valider_sortie_exceptionnelle", "stock.valider_entree_directe");
 
   const { donnees, erreur, chargement } = useDonnees(async () => {
-    const [aValider, attendues, aControler, soldes, enAttente] = await Promise.all([
-      valideAchats ? lire<S["CommandePublic"][]>("/api/commandes-achat" + requete({ statut: "soumise" })) : [],
-      voitAchats
-        ? lire<S["CommandePublic"][]>("/api/commandes-achat" + requete({ en_attente_marchandise: true }))
-        : [],
+    const voitAchats = peut("achats.consulter");
+    const voitProd = peut("production.consulter");
+    const voitDR = peut("doctor_rewinder.consulter");
+    const voitStock = peut("stock.consulter");
+    const valideStock = peutUn("stock.valider_ajustement", "stock.valider_sortie_exceptionnelle", "stock.valider_entree_directe");
+    const [aValider, aEnvoyer, aControler, attendues, ordres, dossiers, enAttente, soldes] = await Promise.all([
+      peut("achats.valider") ? lire<S["CommandePublic"][]>("/api/commandes-achat" + requete({ statut: "soumise" })) : [],
+      peut("achats.saisir") ? lire<S["CommandePublic"][]>("/api/commandes-achat" + requete({ statut: "validee" })) : [],
       voitAchats ? lire<S["ReceptionPublic"][]>("/api/receptions-achat" + requete({ statut: "en_controle" })) : [],
+      voitAchats ? lire<S["CommandePublic"][]>("/api/commandes-achat" + requete({ en_attente_marchandise: true })) : [],
+      voitProd ? lire<S["OrdrePublic"][]>("/api/ordres-fabrication") : [],
+      voitDR ? lire<S["EncoursPublic"][]>("/api/doctor-rewinder") : [],
+      voitStock && valideStock ? lire<S["MouvementPublic"][]>("/api/stock/mouvements" + requete({ statut: "en_attente" })) : [],
       voitStock ? lire<S["SoldeArticle"][]>("/api/stock/soldes") : [],
-      voitStock && valideStock
-        ? lire<S["MouvementPublic"][]>("/api/stock/mouvements" + requete({ statut: "en_attente" }))
-        : [],
     ]);
-    return { aValider, attendues, aControler, soldes, enAttente };
+    return { aValider, aEnvoyer, aControler, attendues, ordres, dossiers, enAttente, soldes };
   });
 
+  function taches(d: NonNullable<typeof donnees>): Tache[] {
+    const of = (statut: string) => d.ordres.filter((o) => o.statut === statut).length;
+    const dr = (statut: string) => d.dossiers.filter((e) => e.statut === statut).length;
+    const liste: (Tache | false)[] = [
+      peut("achats.valider") && { nombre: d.aValider.length, texte: "commande(s) d'achat à valider", vers: "/commandes?statut=soumise", ton: "alerte" },
+      peut("achats.saisir") && { nombre: d.aEnvoyer.length, texte: "commande(s) validée(s), à envoyer au fournisseur", vers: "/commandes?statut=validee" },
+      peut("achats.consulter") && { nombre: d.aControler.length, texte: "arrivée(s) de marchandise à contrôler", vers: "/receptions", ton: "alerte" },
+      peut("production.saisir") && { nombre: of("brouillon"), texte: "ordre(s) de fabrication à soumettre", vers: "/production?statut=brouillon" },
+      peut("stock.executer_sortie") && { nombre: of("soumis"), texte: "ordre(s) : tubes à sortir du stock", vers: "/production?statut=soumis" },
+      peut("production.saisir") && { nombre: of("matieres_validees"), texte: "ordre(s) prêt(s) à démarrer", vers: "/production?statut=matieres_validees" },
+      peut("production.saisir") && { nombre: of("en_cours"), texte: "ordre(s) en fabrication : résultat à saisir", vers: "/production?statut=en_cours" },
+      peut("production.valider") && { nombre: of("resultat_saisi"), texte: "résultat(s) de fabrication à valider", vers: "/production?statut=resultat_saisi", ton: "alerte" },
+      peut("production.cloturer") && { nombre: of("resultat_valide"), texte: "ordre(s) à clôturer", vers: "/production?statut=resultat_valide" },
+      peut("production.saisir") && { nombre: dr("en_cours"), texte: "dossier(s) Doctor Rewinder : retour à déclarer", vers: "/doctor-rewinder?statut=en_cours" },
+      peut("doctor_rewinder.valider") && { nombre: dr("a_valider"), texte: "traitement(s) Doctor Rewinder à valider", vers: "/doctor-rewinder?statut=a_valider", ton: "alerte" },
+      { nombre: d.enAttente.length, texte: "entrée(s) ou sortie(s) de stock à confirmer", vers: "/stock/mouvements?statut=en_attente", ton: "alerte" },
+      { nombre: d.soldes.filter((s) => s.negatif).length, texte: "produit(s) avec un stock négatif (erreur à corriger)", vers: "/stock", ton: "danger" },
+      { nombre: d.soldes.filter((s) => s.sous_seuil_min && !s.negatif).length, texte: "produit(s) presque fini(s)", vers: "/stock", ton: "alerte" },
+    ];
+    return liste.filter((t): t is Tache => t !== false && t.nombre > 0);
+  }
+
   return (
-    <Page
-      titre={`Bonjour ${utilisateur.nom.split(" ")[0]}`}
-      sousTitre={`${ROLES[utilisateur.role] ?? utilisateur.role} — voici ce qui demande votre attention.`}
-    >
+    <Page titre={`Bonjour ${utilisateur.nom.split(" ")[0]}`} sousTitre={ROLES[utilisateur.role] ?? utilisateur.role}>
       <Chargement erreur={erreur} chargement={chargement}>
         {donnees && (
           <>
-            <div className="grille quatre">
-              {valideAchats && (
-                <Indicateur valeur={donnees.aValider.length} legende="Commandes à valider" vers="/commandes?statut=soumise" ton={donnees.aValider.length ? "alerte" : undefined} />
+            <Carte titre="À faire">
+              {(() => {
+                const liste = taches(donnees);
+                if (liste.length === 0) return <p className="vide">Rien à faire pour le moment. ✓</p>;
+                return (
+                  <ul className="taches">
+                    {liste.map((t) => (
+                      <li key={t.texte}>
+                        <Link to={t.vers} className={`tache${t.ton ? ` tache-${t.ton}` : ""}`}>
+                          <span className="tache-nombre">{nombre(t.nombre)}</span>
+                          <span className="tache-texte">{t.texte}</span>
+                          <span className="tache-fleche">→</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
+            </Carte>
+
+            <div className="actions">
+              {peut("achats.saisir") && <Bouton onClick={() => aller("/commandes/nouvelle")}>Nouvelle commande</Bouton>}
+              {peut("stock.saisir") && (
+                <Bouton variante="secondaire" onClick={() => aller("/stock")}>
+                  Entrée ou sortie de stock
+                </Bouton>
               )}
-              {voitAchats && <Indicateur valeur={donnees.aControler.length} legende="Arrivées à contrôler" vers="/receptions" ton={donnees.aControler.length ? "alerte" : undefined} />}
-              {voitAchats && <Indicateur valeur={donnees.attendues.length} legende="Commandes en attente de marchandise" vers="/commandes?attente=1" />}
-              {valideStock && <Indicateur valeur={donnees.enAttente.length} legende="Mouvements à valider" vers="/stock/mouvements?statut=en_attente" ton={donnees.enAttente.length ? "alerte" : undefined} />}
-              {voitStock && (
-                <Indicateur
-                  valeur={donnees.soldes.filter((s) => s.sous_seuil_min || s.negatif).length}
-                  legende="Articles sous le seuil ou en négatif"
-                  vers="/stock"
-                  ton={donnees.soldes.some((s) => s.sous_seuil_min || s.negatif) ? "danger" : undefined}
-                />
+              {peut("production.saisir") && (
+                <Bouton variante="secondaire" onClick={() => aller("/production/nouveau")}>
+                  Nouvel ordre de fabrication
+                </Bouton>
               )}
             </div>
 
-            <div className="grille deux">
-              {valideAchats && (
-                <Carte titre="Commandes en attente de votre validation">
-                  {donnees.aValider.length === 0 ? (
-                    <Vide>Aucune commande à valider.</Vide>
-                  ) : (
-                    <Table colonnes={["Commande", "Prévue", "Saisie par"]}>
-                      {donnees.aValider.map((c) => (
-                        <tr key={c.id}>
-                          <td>
-                            <Link to={`/commandes/${c.id}`}>{c.numero}</Link>
-                          </td>
-                          <td>{date(c.date_arrivee_prevue)}</td>
-                          <td>{nom(c.cree_par)}</td>
-                        </tr>
-                      ))}
-                    </Table>
-                  )}
-                </Carte>
-              )}
-
-              {voitAchats && (
-                <Carte titre="Marchandise attendue" droite={<Link to="/commandes?attente=1">Tout voir</Link>}>
-                  {donnees.attendues.length === 0 ? (
-                    <Vide>Aucune commande en attente de livraison.</Vide>
-                  ) : (
-                    <Table colonnes={["Commande", "Arrivée prévue", "État"]}>
-                      {donnees.attendues.slice(0, 6).map((c) => (
-                        <tr key={c.id}>
-                          <td>
-                            <Link to={`/commandes/${c.id}`}>{c.numero}</Link>
-                          </td>
-                          <td>{date(c.date_arrivee_prevue)}</td>
-                          <td>
-                            <Badge ton={STATUTS_COMMANDE[c.statut]?.ton}>{STATUTS_COMMANDE[c.statut]?.libelle}</Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </Table>
-                  )}
-                </Carte>
-              )}
-
-              {voitAchats && donnees.aControler.length > 0 && (
-                <Carte titre="Arrivées à contrôler avant l'entrée en stock">
-                  <Table colonnes={["Réception", "Conteneur", "Arrivée"]}>
-                    {donnees.aControler.map((r) => (
-                      <tr key={r.id}>
-                        <td>
-                          <Link to={`/receptions/${r.id}`}>{r.numero}</Link>
-                        </td>
-                        <td>{r.conteneur_reference ?? "—"}</td>
-                        <td>{date(r.date_arrivee)}</td>
-                      </tr>
-                    ))}
-                  </Table>
-                </Carte>
-              )}
-
-              {valideStock && donnees.enAttente.length > 0 && (
-                <Carte titre="Mouvements de stock à valider">
-                  <Table colonnes={["Type", "Motif", "État"]}>
-                    {donnees.enAttente.slice(0, 6).map((m) => (
-                      <tr key={m.id}>
-                        <td>{TYPES_MOUVEMENT[m.type]}</td>
-                        <td>{m.motif}</td>
-                        <td>
-                          <Badge ton={STATUTS_MOUVEMENT[m.statut]?.ton}>{STATUTS_MOUVEMENT[m.statut]?.libelle}</Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </Table>
-                </Carte>
-              )}
-
-              {voitStock && (
-                <Carte titre="Stock à surveiller" droite={<Link to="/stock">Voir le stock</Link>}>
-                  {donnees.soldes.filter((s) => s.sous_seuil_min || s.negatif).length === 0 ? (
-                    <Vide>Aucun article sous son seuil.</Vide>
-                  ) : (
-                    <Table colonnes={["Article", { texte: "Disponible", droite: true }, "Alerte"]}>
-                      {donnees.soldes
-                        .filter((s) => s.sous_seuil_min || s.negatif)
-                        .map((s) => (
-                          <tr key={s.article_id}>
-                            <td>{s.nom}</td>
-                            <td className="droite">
-                              {nombre(s.disponible, 1)} {s.unite}
-                            </td>
-                            <td>
-                              <Badge ton="danger">{s.negatif ? "Stock négatif" : "Sous le seuil"}</Badge>
-                            </td>
-                          </tr>
-                        ))}
-                    </Table>
-                  )}
-                </Carte>
-              )}
-            </div>
+            {donnees.attendues.length > 0 && (
+              <p className="champ-aide">
+                {nombre(donnees.attendues.length)} commande(s) en route vers l'usine : <Link to="/commandes?attente=1">les voir</Link>.
+              </p>
+            )}
           </>
         )}
       </Chargement>
