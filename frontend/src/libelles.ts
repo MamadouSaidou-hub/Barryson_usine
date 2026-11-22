@@ -49,6 +49,8 @@ export const TYPES_MOUVEMENT: Record<string, string> = {
   transformation: "Transformation",
   ajustement: "Ajustement",
   inventaire: "Inventaire",
+  entree_manuelle: "Entrée",
+  sortie_manuelle: "Sortie",
 };
 
 export const FINITIONS: Record<string, string> = {

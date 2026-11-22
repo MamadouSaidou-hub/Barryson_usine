@@ -59,6 +59,7 @@ def _reponse_session(utilisateur, csrf: str, db: Session) -> ReponseSession:
         permissions=toutes,
         permissions_deleguees=deleguees,
         double_facteur_a_configurer=service.double_facteur_a_configurer(utilisateur),
+        validations_actives=get_settings().validations_actives,
         csrf_token=csrf,
     )
 

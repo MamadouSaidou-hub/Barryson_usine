@@ -163,12 +163,37 @@ def droits_couverts(permissions: list[str] | set[str]) -> set[str]:
     return couverts
 
 
+# Phase de developpement (validations_actives = False) : plus de circuit de validation. Celui qui saisit
+# dans un domaine obtient les validations et executions de ce domaine. Rien de tel ne s'applique des que
+# les validations sont actives (obligatoire hors developpement).
+SANS_CIRCUIT: dict[str, str] = {
+    "achats.valider": "achats.saisir",
+    "stock.valider_ajustement": "stock.saisir",
+    "stock.valider_sortie_exceptionnelle": "stock.saisir",
+    "stock.valider_entree_directe": "stock.saisir",
+    "production.valider": "production.saisir",
+    "production.cloturer": "production.saisir",
+    "production.annuler": "production.saisir",
+    "stock.executer_sortie": "production.saisir",
+    "doctor_rewinder.valider": "production.saisir",
+}
+
+
+def _droits_du_role(role: str) -> frozenset[str]:
+    from app.core.config import get_settings
+
+    propres = _MATRICE.get(role, frozenset())
+    if get_settings().validations_actives:
+        return propres
+    return propres | {cible for cible, base in SANS_CIRCUIT.items() if base in propres}
+
+
 def a_la_permission(role: str, permission: str) -> bool:
-    return permission in _MATRICE.get(role, frozenset())
+    return permission in _droits_du_role(role)
 
 
 def permissions_du_role(role: str) -> list[str]:
-    return sorted(_MATRICE.get(role, frozenset()))
+    return sorted(_droits_du_role(role))
 
 
 def matrice() -> dict[str, frozenset[str]]:
@@ -181,5 +206,9 @@ class ConflitDeSeparation(Exception):
 
 def exiger_valideur_distinct(cree_par: object, valide_par: object) -> None:
     """Separation saisie/validation imposee par le systeme, pas par la procedure."""
+    from app.core.config import get_settings
+
+    if not get_settings().validations_actives:
+        return
     if valide_par is None or cree_par == valide_par:
         raise ConflitDeSeparation("La validation doit être faite par une autre personne que la saisie.")

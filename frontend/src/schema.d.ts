@@ -1539,6 +1539,10 @@ export interface components {
             poids_net_type_kg?: number | string | null;
             /** Metrage Type M */
             metrage_type_m?: number | string | null;
+            /** Prix Unitaire */
+            prix_unitaire?: number | string | null;
+            /** Devise Prix */
+            devise_prix?: ("USD" | "EUR" | "CNY" | "GNF") | null;
             /** Note */
             note?: string | null;
         };
@@ -1554,6 +1558,10 @@ export interface components {
             poids_net_type_kg?: number | string | null;
             /** Metrage Type M */
             metrage_type_m?: number | string | null;
+            /** Prix Unitaire */
+            prix_unitaire?: number | string | null;
+            /** Devise Prix */
+            devise_prix?: ("USD" | "EUR" | "CNY" | "GNF") | null;
             /** Note */
             note?: string | null;
             /** Actif */
@@ -1594,6 +1602,10 @@ export interface components {
             poids_net_type_kg: number | null;
             /** Metrage Type M */
             metrage_type_m: number | null;
+            /** Prix Unitaire */
+            prix_unitaire: number | null;
+            /** Devise Prix */
+            devise_prix: string | null;
             /** Note */
             note: string | null;
             /** Actif */
@@ -3128,6 +3140,11 @@ export interface components {
             permissions_deleguees: string[];
             /** Double Facteur A Configurer */
             double_facteur_a_configurer: boolean;
+            /**
+             * Validations Actives
+             * @default true
+             */
+            validations_actives: boolean;
             /** Csrf Token */
             csrf_token: string;
         };
@@ -4924,7 +4941,7 @@ export interface operations {
         parameters: {
             query?: {
                 article_id?: string | null;
-                type?: ("reception" | "entree" | "entree_directe" | "retour" | "consommation" | "sortie" | "sortie_exceptionnelle" | "rebut_destruction" | "transformation" | "ajustement" | "inventaire") | null;
+                type?: ("reception" | "entree" | "entree_directe" | "retour" | "consommation" | "sortie" | "sortie_exceptionnelle" | "rebut_destruction" | "transformation" | "ajustement" | "inventaire" | "entree_manuelle" | "sortie_manuelle") | null;
                 statut?: string | null;
                 /** @description Plus anciens que */
                 avant?: string | null;

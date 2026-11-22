@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.audit import maintenant
+from app.core.config import get_settings
 from app.core.erreurs import Conflit, DonneesInvalides, Introuvable, OperationInterdite
 from app.core.transactions import transactionnel
 from app.modules.doctor_rewinder.models import EncoursDoctorRewinder
@@ -89,7 +90,7 @@ def valider(db: Session, acteur: Utilisateur, encours_id: uuid.UUID) -> EncoursD
         db.rollback()
         raise Conflit(f"Validation impossible : l'encours est « {encours.statut} », "
                       "il doit être « a_valider ».")
-    if encours.traite_par == acteur.id:
+    if get_settings().validations_actives and encours.traite_par == acteur.id:
         db.rollback()
         raise OperationInterdite("La validation doit être faite par une autre personne que celle qui a "
                                  "déclaré le traitement.")

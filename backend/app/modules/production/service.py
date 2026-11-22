@@ -320,7 +320,8 @@ def valider_resultat(db: Session, acteur: Utilisateur, ordre_id: uuid.UUID) -> O
         db.rollback()
         raise Conflit(f"Transition impossible : l'ordre {ordre.numero} est « {ordre.statut} », "
                       "il doit être « resultat_saisi ».")
-    if get_settings().separer_saisie_validation_resultat and ordre.resultat_saisi_par == acteur.id:
+    if (get_settings().validations_actives and get_settings().separer_saisie_validation_resultat
+            and ordre.resultat_saisi_par == acteur.id):
         db.rollback()
         raise OperationInterdite("La validation doit être faite par une autre personne que la saisie.")
     resultat = resultat_calcule(db, ordre)

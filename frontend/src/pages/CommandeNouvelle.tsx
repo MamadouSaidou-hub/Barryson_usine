@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { envoyer, lire, type S } from "../api";
+import { useAuth } from "../auth";
 import { DEVISES, FINITIONS } from "../libelles";
 import { Alerte, Badge, Bouton, Carte, Champ, Chargement, Choix, Page, Saisie, Tableau, messageErreur, montant, nombre, useDonnees } from "../ui";
 
@@ -11,12 +12,16 @@ interface Ligne {
   finition: string;
   // Renseigne quand la ligne vient du catalogue du fournisseur : article et finition sont alors imposes.
   catalogue_id?: string;
+  // Vrai tant que le prix affiche vient du catalogue et n'a pas ete retouche.
+  prixAuto?: boolean;
 }
 
 const LIGNE_VIDE: Ligne = { article_id: "", quantite: "", prix: "", finition: "" };
 
 export function CommandeNouvelle() {
   const aller = useNavigate();
+  const { session } = useAuth();
+  const sansCircuit = session?.validations_actives === false;
   const { donnees, erreur, chargement } = useDonnees(async () => {
     const [articles, fournisseurs, catalogue] = await Promise.all([
       lire<S["ArticlePublic"][]>("/api/articles?actif=true"),
@@ -53,8 +58,21 @@ export function CommandeNouvelle() {
     });
   }
 
+  // Le prix du catalogue n'est propose que dans sa devise : 1 450 USD ne devient jamais 1 450 EUR.
+  const prixPropose = (e: S["CataloguePublic"] | undefined, deviseCommande: string) =>
+    e && e.prix_unitaire !== null && e.devise_prix === deviseCommande ? String(e.prix_unitaire) : "";
+
+  function changerDevise(nouvelle: (typeof DEVISES)[number]) {
+    setDevise(nouvelle);
+    // Les prix repris du catalogue suivent la devise ; ceux saisis a la main ne sont jamais touches.
+    setLignes((anciennes) =>
+      anciennes.map((l) => (l.catalogue_id && l.prixAuto ? { ...l, prix: prixPropose(catalogueParId(l.catalogue_id), nouvelle) } : l)),
+    );
+  }
+
   function ajouterDuCatalogue(e: S["CataloguePublic"]) {
-    const nouvelle: Ligne = { article_id: e.article_id, quantite: "", prix: "", finition: e.couleur_finition ?? "", catalogue_id: e.id };
+    const prix = prixPropose(e, devise);
+    const nouvelle: Ligne = { article_id: e.article_id, quantite: "", prix, prixAuto: true, finition: e.couleur_finition ?? "", catalogue_id: e.id };
     setLignes((anciennes) => {
       const vide = anciennes.length === 1 && !anciennes[0].article_id && !anciennes[0].quantite && !anciennes[0].prix;
       return vide ? [nouvelle] : [...anciennes, nouvelle];
@@ -63,7 +81,7 @@ export function CommandeNouvelle() {
 
   function changer(i: number, champ: keyof Ligne, valeur: string) {
     setLignes((anciennes) =>
-      anciennes.map((l, j) => (j === i ? { ...l, [champ]: valeur, ...(champ === "article_id" ? { finition: "" } : {}) } : l)),
+      anciennes.map((l, j) => (j === i ? { ...l, [champ]: valeur, ...(champ === "article_id" ? { finition: "" } : {}), ...(champ === "prix" ? { prixAuto: false } : {}) } : l)),
     );
   }
 
@@ -89,6 +107,8 @@ export function CommandeNouvelle() {
             catalogue_id: l.catalogue_id ?? null,
           })),
       });
+      // Sans circuit de validation (developpement), enregistrer = commander : plus d'etape entre les deux.
+      if (sansCircuit) await envoyer(`/api/commandes-achat/${commande.id}/commander`);
       aller(`/commandes/${commande.id}`);
     } catch (err) {
       setProblemes(messageErreur(err));
@@ -99,11 +119,11 @@ export function CommandeNouvelle() {
   const valide = fournisseur && lignes.some((l) => l.article_id && Number(l.quantite.replace(",", ".")) > 0);
 
   return (
-    <Page titre="Préparer une commande d'achat" sousTitre="La commande restera en brouillon jusqu'à ce que vous la soumettiez au Directeur général.">
+    <Page titre="Nouvelle commande" sousTitre={sansCircuit ? "Choisissez le fournisseur, ajoutez les produits et les quantités." : "Choisissez le fournisseur, ajoutez les produits et les quantités. Le Directeur général validera."}>
       <Chargement erreur={erreur} chargement={chargement}>
         {donnees && (
           <form className="formulaire" onSubmit={enregistrer}>
-            <Carte titre="Fournisseur et conditions">
+            <Carte titre="Chez quel fournisseur ?">
               <div className="formulaire">
                 <div className="rangee">
                   <Champ etiquette="Fournisseur">
@@ -117,34 +137,39 @@ export function CommandeNouvelle() {
                     </Choix>
                   </Champ>
                   <Champ etiquette="Devise de la commande">
-                    <Choix value={devise} onChange={(e) => setDevise(e.target.value as typeof devise)}>
+                    <Choix value={devise} onChange={(e) => changerDevise(e.target.value as typeof devise)}>
                       {DEVISES.map((d) => (
                         <option key={d}>{d}</option>
                       ))}
                     </Choix>
                   </Champ>
-                  {devise !== "GNF" && (
-                    <Champ etiquette={`Taux du jour (1 ${devise} = … GNF)`} aide="Facultatif. Sert à estimer le montant en GNF pour le DG.">
-                      <Saisie inputMode="decimal" value={taux} placeholder="ex. 8650" onChange={(e) => setTaux(e.target.value)} />
+                </div>
+                <details>
+                  <summary>Plus d'options (taux, date d'arrivée, référence…)</summary>
+                  <div className="formulaire" style={{ marginTop: 12 }}>
+                    {devise !== "GNF" && (
+                      <Champ etiquette={`Taux du jour (1 ${devise} = … GNF)`} aide="Facultatif. Sert à estimer le montant en GNF pour le DG.">
+                        <Saisie inputMode="decimal" value={taux} placeholder="ex. 8650" onChange={(e) => setTaux(e.target.value)} />
+                      </Champ>
+                    )}
+                    <div className="rangee">
+                      <Champ etiquette="Arrivée prévue">
+                        <Saisie type="date" value={arrivee} onChange={(e) => setArrivee(e.target.value)} />
+                      </Champ>
+                      <Champ etiquette="Référence du fournisseur" aide="Numéro de proforma ou de bon de commande.">
+                        <Saisie value={reference} onChange={(e) => setReference(e.target.value)} />
+                      </Champ>
+                    </div>
+                    <Champ etiquette="Commentaire">
+                      <Saisie value={commentaire} onChange={(e) => setCommentaire(e.target.value)} />
                     </Champ>
-                  )}
-                </div>
-                <div className="rangee">
-                  <Champ etiquette="Arrivée prévue">
-                    <Saisie type="date" value={arrivee} onChange={(e) => setArrivee(e.target.value)} />
-                  </Champ>
-                  <Champ etiquette="Référence du fournisseur" aide="Numéro de proforma ou de bon de commande.">
-                    <Saisie value={reference} onChange={(e) => setReference(e.target.value)} />
-                  </Champ>
-                </div>
-                <Champ etiquette="Commentaire">
-                  <Saisie value={commentaire} onChange={(e) => setCommentaire(e.target.value)} />
-                </Champ>
+                  </div>
+                </details>
               </div>
             </Carte>
 
             {fournisseur && (
-              <Carte titre="Catalogue du fournisseur">
+              <Carte titre="Ses produits">
                 {produitsDuFournisseur.length === 0 ? (
                   <p className="champ-aide" style={{ margin: 0 }}>
                     Aucun produit au catalogue de ce fournisseur : ajoutez des lignes libres ci-dessous.
@@ -257,7 +282,7 @@ export function CommandeNouvelle() {
             {problemes && <Alerte>{problemes}</Alerte>}
             <div className="actions">
               <Bouton type="submit" chargement={envoi} disabled={!valide}>
-                Enregistrer le brouillon
+                Enregistrer la commande
               </Bouton>
               <Bouton type="button" variante="secondaire" onClick={() => aller("/commandes")}>
                 Annuler

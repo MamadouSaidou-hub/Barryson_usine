@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.audit import journaliser, maintenant
+from app.core.config import get_settings
 from app.core.erreurs import Conflit, DonneesInvalides, Introuvable, OperationInterdite
 from app.core.numerotation import prochain_numero
 from app.core.transactions import transactionnel
@@ -403,7 +404,9 @@ def commander(
 ) -> CommandeAchat:
     """La commande validee est passee au fournisseur : on attend desormais la marchandise."""
     commande = charger(db, acteur, commande_id, verrou=True)
-    _passer(db, commande, acteur, ("validee",), "commandee")
+    # Sans circuit de validation (developpement), une commande se passe au fournisseur des son enregistrement.
+    avant = ("validee",) if get_settings().validations_actives else ("brouillon", "soumise", "validee")
+    _passer(db, commande, acteur, avant, "commandee")
     if reference_fournisseur:
         commande.reference_fournisseur = reference_fournisseur
     commande.commandee_le = maintenant()

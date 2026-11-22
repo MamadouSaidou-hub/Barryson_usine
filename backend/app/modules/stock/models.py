@@ -37,6 +37,8 @@ TypeMouvement = Literal[
     "reception", "entree", "entree_directe", "retour",
     "consommation", "sortie", "sortie_exceptionnelle", "rebut_destruction",
     "transformation", "ajustement", "inventaire",
+    # Saisies manuelles sans circuit de validation (phase de developpement) : voir validations_actives.
+    "entree_manuelle", "sortie_manuelle",
 ]
 StatutBobine = Literal["disponible", "entamee_presente", "epuisee"]
 CouleurFinition = Literal["jaune_transparent", "transparent_clair", "or_transparent", "kaki_simple",
@@ -51,8 +53,8 @@ COULEURS_IMPRESSION: tuple[str, ...] = get_args(CouleurImpression)
 MODULES_IMPRESSION = (45, 48, 70)
 
 # Signe impose par le type : l'API recoit une quantite positive, jamais un signe a deviner.
-TYPES_ENTREE = ("reception", "entree", "entree_directe", "retour")
-TYPES_SORTIE = ("consommation", "sortie", "sortie_exceptionnelle", "rebut_destruction")
+TYPES_ENTREE = ("reception", "entree", "entree_directe", "retour", "entree_manuelle")
+TYPES_SORTIE = ("consommation", "sortie", "sortie_exceptionnelle", "rebut_destruction", "sortie_manuelle")
 # Types qui engagent l'usine : comptent seulement une fois valides par une autre personne.
 TYPES_A_VALIDER = ("entree_directe", "sortie_exceptionnelle", "rebut_destruction", "ajustement", "inventaire")
 

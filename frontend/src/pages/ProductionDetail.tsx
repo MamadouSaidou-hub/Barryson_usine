@@ -88,9 +88,32 @@ function Resultat({ ordre, onEnregistre }: { ordre: S["OrdreDetail"]; onEnregist
   );
 }
 
+// Ou en est l'ordre, et qui doit agir ensuite : on ne devine pas, c'est ecrit.
+const PROCHAINE: Record<string, { rang: number; faire: string; qui: string }> = {
+  brouillon: { rang: 1, faire: "Soumettre l'ordre", qui: "le chef de production" },
+  soumis: { rang: 2, faire: "Sortir les tubes du stock", qui: "le magasinier" },
+  matieres_validees: { rang: 3, faire: "Démarrer la fabrication", qui: "le chef de production" },
+  en_cours: { rang: 4, faire: "Saisir le résultat", qui: "le chef de production" },
+  resultat_saisi: { rang: 5, faire: "Valider le résultat", qui: "le Directeur général" },
+  resultat_valide: { rang: 6, faire: "Clôturer l'ordre", qui: "le magasinier" },
+};
+
+function Etapes({ statut, circuit }: { statut: string; circuit: boolean }) {
+  const p = PROCHAINE[statut];
+  if (!p) return null;
+  return (
+    <Alerte ton="info">
+      <strong>
+        Étape {p.rang} sur 6 : {p.faire}
+      </strong>{" "}
+      {circuit ? <> — à faire par {p.qui}.</> : "."}
+    </Alerte>
+  );
+}
+
 export function ProductionDetail() {
   const { id } = useParams();
-  const { peut } = useAuth();
+  const { peut, session } = useAuth();
   const nom = useAnnuaire();
   const [annulation, setAnnulation] = useState(false);
   const [derogation, setDerogation] = useState(false);
@@ -150,6 +173,7 @@ export function ProductionDetail() {
         {o && donnees && (
           <>
             {probleme && <Alerte>{probleme}</Alerte>}
+            <Etapes statut={statut} circuit={session?.validations_actives !== false} />
             {o.alertes.map((a) => (
               <Alerte key={a.code} ton="alerte">
                 {a.message}

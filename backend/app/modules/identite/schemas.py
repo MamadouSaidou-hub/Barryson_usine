@@ -73,6 +73,8 @@ class ReponseSession(BaseModel):
     permissions_deleguees: list[str] = []
     # Vrai : seul l'ecran de configuration du second facteur est utilisable.
     double_facteur_a_configurer: bool
+    # Faux en phase de developpement : plus de circuit de validation, l'interface s'allege.
+    validations_actives: bool = True
     # A renvoyer dans l'en-tete X-CSRF-Token de toute requete qui modifie quelque chose.
     csrf_token: str
 

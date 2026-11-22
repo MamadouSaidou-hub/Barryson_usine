@@ -16,6 +16,7 @@ select = ["E", "F", "I", "UP", "B"]
 "tests/*" = ["E501"]
 # Les fixtures de l'atelier de production sont importees telles quelles : pytest les redefinit en parametres.
 "tests/test_doctor_rewinder.py" = ["F811"]
+"tests/test_sans_circuit.py" = ["F811"]
 
 [tool.ruff.lint.isort]
 # Le dossier local "alembic/" ferait passer le paquet alembic pour du code

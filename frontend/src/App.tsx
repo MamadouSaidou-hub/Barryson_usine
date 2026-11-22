@@ -30,33 +30,21 @@ interface Entree {
 }
 
 const MENU: { groupe: string; entrees: Entree[] }[] = [
-  { groupe: "", entrees: [{ vers: "/", libelle: "Tableau de bord", droit: [], fin: true }] },
   {
-    groupe: "Approvisionnement",
+    groupe: "",
     entrees: [
-      { vers: "/commandes", libelle: "Commandes d'achat", droit: ["achats.consulter"] },
-      { vers: "/receptions", libelle: "Arrivées à contrôler", droit: ["achats.consulter"] },
-      { vers: "/catalogue", libelle: "Catalogue fournisseur", droit: ["achats.consulter"] },
-    ],
-  },
-  {
-    groupe: "Production",
-    entrees: [
-      { vers: "/production", libelle: "Ordres de fabrication", droit: ["production.consulter"] },
+      { vers: "/", libelle: "Accueil", droit: [], fin: true },
+      { vers: "/commandes", libelle: "Commander", droit: ["achats.consulter"] },
+      { vers: "/receptions", libelle: "Recevoir", droit: ["achats.consulter"] },
+      { vers: "/stock", libelle: "Stock", droit: ["stock.consulter"], fin: true },
+      { vers: "/production", libelle: "Production", droit: ["production.consulter"] },
       { vers: "/doctor-rewinder", libelle: "Doctor Rewinder", droit: ["doctor_rewinder.consulter"] },
     ],
   },
   {
-    groupe: "Stock",
+    groupe: "Réglages",
     entrees: [
-      { vers: "/stock", libelle: "Niveaux de stock", droit: ["stock.consulter"], fin: true },
-      { vers: "/stock/lots", libelle: "Lots et bobines", droit: ["stock.consulter"] },
-      { vers: "/stock/mouvements", libelle: "Mouvements", droit: ["stock.consulter"] },
-    ],
-  },
-  {
-    groupe: "Administration",
-    entrees: [
+      { vers: "/catalogue", libelle: "Produits du fournisseur", droit: ["achats.consulter"] },
       { vers: "/referentiel", libelle: "Articles et fournisseurs", droit: ["referentiels.consulter", "achats.consulter"] },
       { vers: "/delegations", libelle: "Délégations", droit: ["delegations.gerer"] },
     ],
@@ -76,7 +64,9 @@ function Disposition() {
           <small>Group BARRYSON Sarl</small>
         </div>
         {MENU.map(({ groupe, entrees }) => {
-          const visibles = entrees.filter((e) => e.droit.length === 0 || peutUn(...e.droit));
+          const visibles = entrees.filter(
+            (e) => (e.droit.length === 0 || peutUn(...e.droit)) && !(e.vers === "/delegations" && session!.validations_actives === false),
+          );
           if (visibles.length === 0) return null;
           return (
             <div key={groupe} style={{ display: "contents" }}>

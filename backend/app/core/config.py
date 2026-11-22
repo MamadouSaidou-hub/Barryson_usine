@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     # Le chef de production saisit le resultat, le DG (ou son delegataire) le valide. Meme si le DG delegue
     # a la personne qui a saisi, elle ne peut pas valider son propre resultat.
     separer_saisie_validation_resultat: bool = True
+    # Phase de developpement : a False, plus aucun circuit de validation (commande d'achat, mouvement de
+    # stock, resultat de fabrication, Doctor Rewinder) : celui qui saisit peut tout faire, on avance.
+    # A True (valeur par defaut), les circuits et la separation saisie/validation s'appliquent.
+    # Interdit hors developpement : voir le validateur ci-dessous.
+    validations_actives: bool = True
     # Une delegation du DG est toujours limitee dans le temps : pas de pouvoir confie "pour toujours".
     delegation_duree_max_jours: int = 90
     # Roles tenus de valider un code a usage unique a la connexion.
@@ -78,6 +83,8 @@ class Settings(BaseSettings):
             erreurs.append("POSTGRES_APP_USER doit differer du proprietaire des tables")
         if not ROLES_DOUBLE_FACTEUR_MINIMUM <= set(self.roles_double_facteur):
             erreurs.append("le second facteur est obligatoire pour le DG et l'administrateur")
+        if not self.validations_actives:
+            erreurs.append("VALIDATIONS_ACTIVES ne peut etre desactive qu'en developpement")
         if "testserver" in self.hotes_autorises:
             erreurs.append("HOTES_AUTORISES doit lister les vrais noms de domaine")
         if erreurs:
