@@ -728,6 +728,26 @@ def test_catalogue_refuse_les_entrees_incoherentes(client, en_tant_que, base):
         assert reponse.status_code == attendu, (extra, reponse.status_code, reponse.text)
 
 
+def test_le_catalogue_garde_un_prix_avec_sa_devise(client, en_tant_que, base):
+    entetes = en_tant_que("responsable_stock")
+    # Prix et devise vont ensemble : l'un sans l'autre est refuse, a la creation comme a la modification.
+    for extra in ({"prix_unitaire": "1450"}, {"devise_prix": "USD"}, {"prix_unitaire": "-1", "devise_prix": "USD"},
+                  {"prix_unitaire": "1450", "devise_prix": "XOF"}):
+        reponse = client.post("/api/catalogue-fournisseur", headers=entetes, json=_entree_catalogue(base) | extra)
+        assert reponse.status_code == 422, (extra, reponse.status_code, reponse.text)
+    cree = client.post("/api/catalogue-fournisseur", headers=entetes,
+                       json=_entree_catalogue(base) | {"prix_unitaire": "1450", "devise_prix": "USD"})
+    assert cree.status_code == 201, cree.text
+    corps = cree.json()
+    assert corps["prix_unitaire"] == 1450 and corps["devise_prix"] == "USD"
+    chemin = f"/api/catalogue-fournisseur/{corps['id']}"
+    assert client.patch(chemin, headers=entetes, json={"prix_unitaire": "1500"}).status_code == 422
+    nouveau = client.patch(chemin, headers=entetes, json={"prix_unitaire": "1500", "devise_prix": "EUR"})
+    assert nouveau.status_code == 200 and nouveau.json()["prix_unitaire"] == 1500
+    vide = client.patch(chemin, headers=entetes, json={"prix_unitaire": None, "devise_prix": None})
+    assert vide.status_code == 200 and vide.json()["prix_unitaire"] is None and vide.json()["devise_prix"] is None
+
+
 def test_le_compte_applicatif_ne_peut_pas_supprimer_une_entree_du_catalogue(db, base, entreprise):
     entree = achats.creer_catalogue(db, type("A", (), {"entreprise_id": entreprise.id, "id": None})(),
                                     {k: uuid.UUID(v) if k.endswith("_id") else v

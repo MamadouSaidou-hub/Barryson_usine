@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { envoyer, lire, modifier, type S } from "../api";
 import { useAuth } from "../auth";
-import { FINITIONS } from "../libelles";
+import { DEVISES, FINITIONS } from "../libelles";
 import { Alerte, Badge, Bouton, Carte, Champ, Chargement, Choix, Page, Saisie, Tableau, Vide, messageErreur, nombre, useDonnees } from "../ui";
 
 type Entree = S["CataloguePublic"];
@@ -23,6 +23,8 @@ function Formulaire({ fournisseurId, articles, entree, onFermer, onEnregistre }:
   const [reference, setReference] = useState(entree?.reference_couleur_fournisseur ?? "");
   const [poids, setPoids] = useState(entree?.poids_net_type_kg?.toString() ?? "");
   const [metrage, setMetrage] = useState(entree?.metrage_type_m?.toString() ?? "");
+  const [prix, setPrix] = useState(entree?.prix_unitaire?.toString() ?? "");
+  const [devisePrix, setDevisePrix] = useState(entree?.devise_prix ?? "USD");
   const [note, setNote] = useState(entree?.note ?? "");
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
@@ -40,6 +42,8 @@ function Formulaire({ fournisseurId, articles, entree, onFermer, onEnregistre }:
       reference_couleur_fournisseur: reference.trim() || null,
       poids_net_type_kg: versNombre(poids),
       metrage_type_m: versNombre(metrage),
+      prix_unitaire: versNombre(prix),
+      devise_prix: versNombre(prix) === null ? null : devisePrix,
       note: note.trim() || null,
     };
     try {
@@ -97,6 +101,18 @@ function Formulaire({ fournisseurId, articles, entree, onFermer, onEnregistre }:
           </Champ>
           <Champ etiquette="Métrage type (m)" aide="Par bobine, facultatif.">
             <Saisie inputMode="decimal" value={metrage} onChange={(e) => setMetrage(e.target.value)} />
+          </Champ>
+        </div>
+        <div className="rangee">
+          <Champ etiquette="Prix habituel" aide="Facultatif. Proposé à la commande, toujours modifiable.">
+            <Saisie inputMode="decimal" value={prix} onChange={(e) => setPrix(e.target.value)} />
+          </Champ>
+          <Champ etiquette="Devise du prix">
+            <Choix value={devisePrix} onChange={(e) => setDevisePrix(e.target.value)}>
+              {DEVISES.map((d) => (
+                <option key={d}>{d}</option>
+              ))}
+            </Choix>
           </Champ>
         </div>
         <Champ etiquette="Note">
@@ -198,6 +214,7 @@ export function Catalogue() {
                       <td className="droite">
                         {e.poids_net_type_kg ? `${nombre(e.poids_net_type_kg, 0)} kg` : "—"}
                         {e.metrage_type_m ? ` · ${nombre(e.metrage_type_m, 0)} m` : ""}
+                        {e.prix_unitaire !== null && <div>{nombre(e.prix_unitaire, 2)} {e.devise_prix}</div>}
                       </td>
                       <td>
                         <Badge ton={e.actif ? "ok" : "neutre"}>{e.actif ? "Actif" : "Désactivé"}</Badge>

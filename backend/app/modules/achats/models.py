@@ -222,6 +222,11 @@ class ArticleCatalogue(Audite, Base):
                         name="finition_connue"),
         CheckConstraint("poids_net_type_kg IS NULL OR poids_net_type_kg > 0", name="poids_positif"),
         CheckConstraint("metrage_type_m IS NULL OR metrage_type_m > 0", name="metrage_positif"),
+        CheckConstraint("prix_unitaire IS NULL OR prix_unitaire >= 0", name="prix_catalogue_positif"),
+        # Un prix n'a de sens qu'avec sa devise, et inversement.
+        CheckConstraint("(prix_unitaire IS NULL) = (devise_prix IS NULL)", name="prix_et_devise"),
+        CheckConstraint(f"devise_prix IS NULL OR devise_prix IN ({_liste(DEVISES)})",
+                        name="devise_prix_connue"),
     )
 
     id: Mapped[uuid.UUID] = _id()
@@ -235,6 +240,9 @@ class ArticleCatalogue(Audite, Base):
     reference_couleur_fournisseur: Mapped[str | None] = mapped_column(String(80))
     poids_net_type_kg: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     metrage_type_m: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    # Dernier prix connu chez ce fournisseur : propose a la saisie d'une commande, toujours modifiable.
+    prix_unitaire: Mapped[Decimal | None] = mapped_column(Numeric(16, 4))
+    devise_prix: Mapped[str | None] = mapped_column(String(3))
     note: Mapped[str | None] = mapped_column(String(300))
     actif: Mapped[bool] = mapped_column(default=True, server_default="true")
     cree_le: Mapped[datetime] = mapped_column(

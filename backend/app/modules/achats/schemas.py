@@ -256,7 +256,15 @@ class CatalogueCreation(_Entree):
     reference_couleur_fournisseur: CouleurFournisseur | None = None
     poids_net_type_kg: PoidsType | None = None
     metrage_type_m: MetrageType | None = None
+    prix_unitaire: Prix | None = None
+    devise_prix: Devise | None = None
     note: Court | None = None
+
+    @model_validator(mode="after")
+    def _prix_avec_devise(self) -> "CatalogueCreation":
+        if (self.prix_unitaire is None) != (self.devise_prix is None):
+            raise ValueError("Le prix et sa devise vont ensemble : renseignez les deux ou aucun.")
+        return self
 
 
 class CatalogueModification(_Entree):
@@ -265,11 +273,16 @@ class CatalogueModification(_Entree):
     reference_couleur_fournisseur: CouleurFournisseur | None = None
     poids_net_type_kg: PoidsType | None = None
     metrage_type_m: MetrageType | None = None
+    prix_unitaire: Prix | None = None
+    devise_prix: Devise | None = None
     note: Court | None = None
     actif: bool | None = None
 
     @model_validator(mode="after")
     def _libelle_et_actif_non_effacables(self) -> "CatalogueModification":
+        if ("prix_unitaire" in self.model_fields_set) != ("devise_prix" in self.model_fields_set) or (
+                self.prix_unitaire is None) != (self.devise_prix is None):
+            raise ValueError("Le prix et sa devise vont ensemble : renseignez les deux, ou videz les deux.")
         if {"libelle", "actif"} & {c for c in self.model_fields_set if getattr(self, c) is None}:
             raise ValueError("Le libellé et l'état actif ne peuvent pas être vidés.")
         return self
@@ -288,5 +301,7 @@ class CataloguePublic(_Sortie):
     reference_couleur_fournisseur: str | None
     poids_net_type_kg: Nombre | None
     metrage_type_m: Nombre | None
+    prix_unitaire: Nombre | None
+    devise_prix: str | None
     note: str | None
     actif: bool
