@@ -137,9 +137,8 @@ concerne **que** la famille colle papier/tubes (papier gris-gris, colle
 liquide, papier logo/blanc → mandrins longs) — jamais le ruban BOPP, dont le
 jumbo entre directement en stock **niveau 2** par achat/réception conteneur,
 exactement comme déjà décrit en §7.2 et §9 (achats). Les tubes/mandrins vus
-en photo (déjà découpés à longueur courte, logo imprimé) confirment aussi
-qu'il existe une étape de découpe des mandrins longs en segments courts sur
-site, cohérente avec §5.6/§7.2 (paniers de pièces découpées par dimension).
+en photo (déjà découpés à longueur courte, logo imprimé) sont **achetés tels quels**,
+comme les paniers de pièces découpées par dimension (§5.6/§7.2) : aucune découpe sur site.
 
 ### 5.2 Cycle de vie d'un ordre de fabrication (machine à états à implémenter telle quelle)
 
@@ -526,6 +525,8 @@ dans cette fiche ou à ajouter si absent :
   sur site (§5.6/§7.1). Remplacé par un besoin bien plus simple : la
   **nomenclature référence tube papier ↔ modèle/moule de ruban** (quel tube
   va avec quel modèle), à ajouter si absent de la fiche existante ;
+- ~~mandrins et paniers : fabriqués ou achetés ?~~ — **tranché par la direction (2026-11-22) : achetés**, déjà fabriqués, comme les bobines jumbo (§5.6). Aucune fabrication 
+  de mandrins ni de paniers sur site ;
 - pièces par carton pour les références BOPP/masquage encore incomplètes
   (§8 ci-dessus) et confirmation des dimensions PVC électrique ;
 - méthode de valorisation des stocks / coût de revient ;

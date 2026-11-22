@@ -686,7 +686,7 @@ envoyées ; un dossier `traite` porte son valideur.
 | POST | `…/{id}/valider` | `doctor_rewinder.valider` (**DG ou son délégataire**) | `a_valider` → `traite` : entrée en stock des pièces récupérées ; jamais par celui qui a déclaré (403) |
 | POST | `…/{id}/renvoyer` | `doctor_rewinder.valider` | `a_valider` → `en_cours`, `motif` obligatoire |
 
-**Choix appliqué, à confirmer avec le client** : la matrice officielle donne la
+**Choix confirmé par le client (2026-11-22)** : la validation revient au DG, ou à son délégataire s'il la délègue. La matrice officielle donne la
 validation au chef de production ; elle est confiée au DG (délégable), comme
 la validation du résultat de fabrication, pour que la personne qui déclare ne
 soit pas celle qui valide. Retour en arrière : une ligne dans `permissions.py`.

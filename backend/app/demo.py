@@ -41,6 +41,7 @@ COMPTES = [
 ARTICLES = [
     ("JUMBO-BOPP", "Bobine jumbo BOPP 1280 mm", "semi_fini", "rouleau"),
     ("TUBE-PAPIER-45", "Tube papier 45 mm", "semi_fini", "piece"),
+    ("PANIER-PIECES", "Panier de pièces découpées (acheté)", "semi_fini", "panier"),
     ("CARTON-VIDE", "Carton vide Barryson Adhésif", "semi_fini", "piece"),
     ("BSG30", "BSG 30 — 45 mm x 25 m (carton de 90)", "produit_fini", "carton"),
 ]
