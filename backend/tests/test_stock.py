@@ -533,8 +533,8 @@ def test_import_du_vrai_fichier_du_fournisseur_chinois(client, en_tant_que, base
                             "kaki_simple": 7}
     # La reference couleur du fournisseur reste consultable : Golden01 (40) et Golden03 (20).
     detail = client.get(f"/api/imports-colisage/{corps['id']}").json()["lignes"]
-    assert sum("Golden01" in (l["couleur_brute"] or "") for l in detail) == 40
-    assert sum("Golden03" in (l["couleur_brute"] or "") for l in detail) == 20
+    assert sum("Golden01" in (ligne["couleur_brute"] or "") for ligne in detail) == 40
+    assert sum("Golden03" in (ligne["couleur_brute"] or "") for ligne in detail) == 20
 
 
 def test_import_trop_gros_ou_mal_forme_refuse(client, en_tant_que, base):

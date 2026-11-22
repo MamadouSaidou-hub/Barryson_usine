@@ -54,6 +54,11 @@ class ResultatSaisie(_Entree):
     bobine_epuisee: bool = False
 
 
+class SortieMatieres(_Entree):
+    # Seul le DG (ou son delegataire) peut l'utiliser : sortir des tubes absents du stock.
+    derogation_motif: Motif | None = None
+
+
 class Annulation(_Entree):
     motif: Motif
 

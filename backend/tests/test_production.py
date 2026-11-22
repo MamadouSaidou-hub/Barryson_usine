@@ -9,7 +9,6 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 
 from app.core.audit import JournalAudit
-from app.core.config import get_settings
 from app.modules.identite.models import Entreprise
 from app.modules.identite.permissions import ROLES, a_la_permission
 from app.modules.production.models import OrdreFabrication, TransitionOF
@@ -74,7 +73,7 @@ def _solde(client, article) -> dict:
 
 
 class Atelier:
-    """Les trois acteurs de la chaine de fabrication, chacun avec sa session."""
+    """Les acteurs de la chaine de fabrication, chacun avec sa session."""
 
     def __init__(self, client, en_tant_que, usine):
         self.client, self.en_tant_que, self.usine = client, en_tant_que, usine
@@ -149,7 +148,8 @@ def test_chaque_transition_exige_son_propre_droit(client, en_tant_que, usine, ro
 
 def test_qui_fait_quoi_dans_la_chaine_de_fabrication():
     assert a_la_permission("chef_production", "production.saisir")
-    assert a_la_permission("chef_production", "production.valider")
+    assert not a_la_permission("chef_production", "production.valider")
+    assert a_la_permission("dg", "production.valider")
     assert not a_la_permission("chef_production", "production.cloturer")
     assert not a_la_permission("chef_production", "stock.executer_sortie")
     assert a_la_permission("responsable_stock", "stock.executer_sortie")
@@ -193,7 +193,7 @@ def test_cycle_de_vie_complet_de_la_creation_a_la_cloture(client, atelier, usine
     assert (calcule["pieces_conformes"], calcule["cartons_complets"], calcule["pieces_restantes"]) == (4414, 49, 4)
     assert calcule["coherent"] is True and calcule["ecart_pieces"] == -66
 
-    valide = atelier.faire("chef_production", ordre, "valider-resultat")
+    valide = atelier.faire("dg", ordre, "valider-resultat")
     assert valide["statut"] == "resultat_valide" and valide["version_formule"]
 
     cloture = atelier.faire("responsable_stock", ordre, "cloturer")
@@ -329,7 +329,7 @@ def test_aucun_saut_d_etat(atelier, usine):
     ordre = atelier.creer()
     atelier.faire("chef_production", ordre, "demarrer", attendu=409)
     atelier.faire("responsable_stock", ordre, "valider-matieres", attendu=409)
-    atelier.faire("chef_production", ordre, "valider-resultat", attendu=409)
+    atelier.faire("dg", ordre, "valider-resultat", attendu=409)
     atelier.faire("responsable_stock", ordre, "cloturer", attendu=409)
     atelier.resultat(ordre, attendu=409)
     atelier.faire("chef_production", ordre, "soumettre")
@@ -339,7 +339,7 @@ def test_aucun_saut_d_etat(atelier, usine):
     atelier.faire("responsable_stock", ordre, "valider-matieres", attendu=409)
     atelier.resultat(ordre, attendu=409)  # pas encore demarre
     atelier.faire("chef_production", ordre, "demarrer")
-    atelier.faire("chef_production", ordre, "valider-resultat", attendu=409)  # rien n'est saisi
+    atelier.faire("dg", ordre, "valider-resultat", attendu=409)  # rien n'est saisi
     atelier.faire("responsable_stock", ordre, "cloturer", attendu=409)
     assert len(usine["db"].scalars(select(TransitionOF).where(TransitionOF.ordre_id == uuid.UUID(ordre["id"]))).all()) == 4
 
@@ -364,16 +364,16 @@ def test_le_controle_de_coherence_bloque_la_validation_pas_la_saisie(atelier, us
     saisi = atelier.resultat(ordre, pertes_definitives=10)
     assert saisi["statut"] == "resultat_saisi"
     assert saisi["resultat"]["coherent"] is False and saisi["resultat"]["ecart_comptage"] == 6
-    refus = atelier._appeler("chef_production", "POST", f"/api/ordres-fabrication/{ordre['id']}/valider-resultat")
+    refus = atelier._appeler("dg", "POST", f"/api/ordres-fabrication/{ordre['id']}/valider-resultat")
     assert refus.status_code == 400
     assert "non traitées" in refus.json()["detail"] and "+6" in refus.json()["detail"]
     # Double comptage dans l'autre sens.
     atelier.resultat(ordre, quantite_doctor_rewinder=60)
-    refus = atelier._appeler("chef_production", "POST", f"/api/ordres-fabrication/{ordre['id']}/valider-resultat")
+    refus = atelier._appeler("dg", "POST", f"/api/ordres-fabrication/{ordre['id']}/valider-resultat")
     assert refus.status_code == 400 and "double comptage" in refus.json()["detail"]
     # Correction : la saisie se refait tant que rien n'est valide.
     atelier.resultat(ordre)
-    assert atelier.faire("chef_production", ordre, "valider-resultat")["statut"] == "resultat_valide"
+    assert atelier.faire("dg", ordre, "valider-resultat")["statut"] == "resultat_valide"
     atelier.resultat(ordre, attendu=409)  # une fois valide, le resultat est fige
 
 
@@ -404,14 +404,13 @@ def test_plus_de_tours_que_prevu_est_un_avertissement(atelier):
     assert corrige["alertes"] == []
 
 
-def test_separation_saisie_validation_activable(atelier, monkeypatch):
+def test_celui_qui_saisit_le_resultat_ne_peut_pas_le_valider(atelier):
+    """Separation structurelle : le chef de production saisit, seul le DG (ou son delegataire) valide."""
     ordre = atelier.jusqu_a_en_cours()
     atelier.resultat(ordre)
-    monkeypatch.setattr(get_settings(), "separer_saisie_validation_resultat", True)
     refus = atelier._appeler("chef_production", "POST", f"/api/ordres-fabrication/{ordre['id']}/valider-resultat")
-    assert refus.status_code == 403 and "autre personne" in refus.json()["detail"]
-    monkeypatch.setattr(get_settings(), "separer_saisie_validation_resultat", False)
-    assert atelier.faire("chef_production", ordre, "valider-resultat")["statut"] == "resultat_valide"
+    assert refus.status_code == 403
+    assert atelier.faire("dg", ordre, "valider-resultat")["statut"] == "resultat_valide"
 
 
 # --- Cloture : regularisations ----------------------------------------------------------------------------------------
@@ -422,7 +421,7 @@ def test_cloture_restitue_les_tubes_non_utilises(client, atelier, usine):
     # 150 tours au lieu de 160 : 280 tubes sortis en trop.
     atelier.resultat(ordre, tours_totaux=150, tours_defectueux=0, pieces_defectueuses_supplementaires=0,
                      quantite_doctor_rewinder=0, pertes_definitives=0)
-    atelier.faire("chef_production", ordre, "valider-resultat")
+    atelier.faire("dg", ordre, "valider-resultat")
     atelier.faire("responsable_stock", ordre, "cloturer")
     assert _solde(client, usine["tube"])["physique"] == 520.0 + 280.0
     assert _solde(client, usine["produit"])["physique"] == 46.0  # 4 200 pieces / 90 = 46 cartons
@@ -432,7 +431,7 @@ def test_cloture_ajoute_les_tubes_manquants(client, atelier, usine):
     ordre = atelier.jusqu_a_en_cours()
     atelier.resultat(ordre, tours_totaux=162, tours_defectueux=0, pieces_defectueuses_supplementaires=0,
                      quantite_doctor_rewinder=0, pertes_definitives=0)
-    atelier.faire("chef_production", ordre, "valider-resultat")
+    atelier.faire("dg", ordre, "valider-resultat")
     atelier.faire("responsable_stock", ordre, "cloturer")
     assert _solde(client, usine["tube"])["physique"] == 520.0 - 56.0
 
@@ -440,7 +439,7 @@ def test_cloture_ajoute_les_tubes_manquants(client, atelier, usine):
 def test_bobine_epuisee_sort_du_stock(client, atelier, usine):
     ordre = atelier.jusqu_a_en_cours()
     atelier.resultat(ordre, bobine_epuisee=True)
-    atelier.faire("chef_production", ordre, "valider-resultat")
+    atelier.faire("dg", ordre, "valider-resultat")
     atelier.faire("responsable_stock", ordre, "cloturer")
     assert usine["bobines"]["1"].statut == "epuisee"
     assert _solde(client, usine["jumbo"])["physique"] == 2.0
@@ -453,7 +452,7 @@ def test_une_bobine_entamee_sert_a_une_seance_suivante(atelier, usine):
     premier = atelier.jusqu_a_en_cours(metrage=2000)
     atelier.resultat(premier, tours_totaux=80, tours_defectueux=0, pieces_defectueuses_supplementaires=0,
                      quantite_doctor_rewinder=0, pertes_definitives=0)
-    atelier.faire("chef_production", premier, "valider-resultat")
+    atelier.faire("dg", premier, "valider-resultat")
     atelier.faire("responsable_stock", premier, "cloturer")
     second = atelier.creer(metrage=2000)
     assert second["statut"] == "brouillon"
@@ -469,14 +468,14 @@ def test_metrage_cumule_superieur_au_metrage_initial_alerte(atelier, usine, db):
     premier = atelier.jusqu_a_en_cours(metrage=3000)
     atelier.resultat(premier, tours_totaux=120, tours_defectueux=0, pieces_defectueuses_supplementaires=0,
                      quantite_doctor_rewinder=0, pertes_definitives=0)
-    atelier.faire("chef_production", premier, "valider-resultat")
+    atelier.faire("dg", premier, "valider-resultat")
     atelier.faire("responsable_stock", premier, "cloturer")
     suite = atelier.creer(metrage=2000)
     soumis = atelier.faire("chef_production", suite, "soumettre")
     assert [a["code"] for a in soumis["alertes"]] == ["metrage_cumule"]
 
 
-def test_stock_de_tubes_insuffisant_avertit_sans_bloquer(client, atelier, usine, db):
+def test_stock_de_tubes_insuffisant_bloque_la_sortie(client, atelier, usine, db):
     stock.enregistrer_mouvement(db, usine["magasinier"], usine["tube"], "consommation", Decimal(4000),
                                 "Sortie hors fabrication")
     db.commit()
@@ -484,8 +483,20 @@ def test_stock_de_tubes_insuffisant_avertit_sans_bloquer(client, atelier, usine,
     soumis = atelier.faire("chef_production", ordre, "soumettre")
     assert [a["code"] for a in soumis["alertes"]] == ["tubes_insuffisants"]
     assert _solde(client, usine["tube"])["reserve"] == 0.0
-    atelier.faire("responsable_stock", ordre, "valider-matieres")
-    assert _solde(client, usine["tube"])["negatif"] is True  # stock negatif signale, jamais bloquant
+    # Le magasinier ne peut pas sortir des tubes qui n'existent pas : le stock reste intact.
+    refus = atelier._appeler("responsable_stock", "POST", f"/api/ordres-fabrication/{ordre['id']}/valider-matieres")
+    assert refus.status_code == 409 and "insuffisant" in refus.json()["detail"]
+    assert _solde(client, usine["tube"])["physique"] == 1000.0
+    assert atelier._appeler("responsable_stock", "GET", f"/api/ordres-fabrication/{ordre['id']}").json()["statut"] == "soumis"
+    # Il ne peut pas non plus s'accorder lui-meme une derogation.
+    interdit = atelier._appeler("responsable_stock", "POST", f"/api/ordres-fabrication/{ordre['id']}/valider-matieres",
+                                json={"derogation_motif": "On est presses"})
+    assert interdit.status_code == 403
+    # Le DG peut accorder une derogation motivee : tracee dans l'historique, stock negatif signale.
+    accorde = atelier.faire("dg", ordre, "valider-matieres", derogation_motif="Tubes en route, arrivee demain")
+    assert accorde["statut"] == "matieres_validees"
+    assert any("Tubes en route" in (t["motif"] or "") for t in accorde["transitions"])
+    assert _solde(client, usine["tube"])["negatif"] is True
 
 
 # --- Annulation ----------------------------------------------------------------------------------------------------------------
@@ -523,7 +534,7 @@ def test_annulation_apres_soumission_leve_la_reservation(client, atelier, usine)
 def test_un_ordre_cloture_ne_s_annule_pas(atelier):
     ordre = atelier.jusqu_a_en_cours()
     atelier.resultat(ordre)
-    atelier.faire("chef_production", ordre, "valider-resultat")
+    atelier.faire("dg", ordre, "valider-resultat")
     atelier.faire("responsable_stock", ordre, "cloturer")
     atelier.faire("dg", ordre, "annuler", attendu=409, motif="Trop tard pour annuler")
 

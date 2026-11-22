@@ -31,6 +31,13 @@ de faire semblant.
 régulariser, jamais bloquant. Un opérateur bloqué contourne le logiciel ; un
 écart visible se corrige.
 
+*Précision (2026-11-21)* : la **sortie de tubes pour un ordre de fabrication** est
+bloquée quand le stock ne couvre pas le besoin (un stock négatif y cacherait une
+réception non saisie). Pour ne pas bloquer l'atelier, le DG (ou son délégataire,
+droit `stock.valider_sortie_exceptionnelle`) peut accorder une **dérogation
+motivée**, inscrite dans l'historique de l'ordre ; le stock négatif reste alors
+signalé comme écart à régulariser.
+
 ## Conséquences
 
 - Le stock **doit** être un registre de mouvements en ajout seul, jamais un

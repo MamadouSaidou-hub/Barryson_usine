@@ -39,10 +39,9 @@ class Settings(BaseSettings):
     # Niveau 1 du stock : prevu dans le schema, inactif tant que l'usine achete
     # tout sous forme de semi-finis (reunion usine du 2026-11-19).
     niveau_matiere_premiere_actif: bool = False
-    # La matrice officielle n'a pas de profil "agent de saisie" distinct du chef de production :
-    # tant qu'un tel compte n'existe pas, imposer que le valideur du resultat differe de celui qui
-    # l'a saisi bloquerait le chef de production seul. A activer des qu'un agent existe.
-    separer_saisie_validation_resultat: bool = False
+    # Le chef de production saisit le resultat, le DG (ou son delegataire) le valide. Meme si le DG delegue
+    # a la personne qui a saisi, elle ne peut pas valider son propre resultat.
+    separer_saisie_validation_resultat: bool = True
     # Une delegation du DG est toujours limitee dans le temps : pas de pouvoir confie "pour toujours".
     delegation_duree_max_jours: int = 90
     # Roles tenus de valider un code a usage unique a la connexion.

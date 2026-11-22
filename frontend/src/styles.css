@@ -425,11 +425,20 @@ textarea.saisie {
   background: var(--carte);
   border-radius: var(--rayon);
   padding: 22px;
-  width: min(520px, 100%);
+  width: min(560px, 100%);
+  /* Une fenetre plus haute que l'ecran defile au lieu de deborder. */
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 14px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+.modale .rangee {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
 }
 
 /* ----- Ecran de connexion ----------------------------------------------------------------------------------------- */
@@ -527,4 +536,19 @@ textarea.saisie {
   .contenu {
     padding: 18px 14px 50px;
   }
+}
+
+/* Indicateurs cliquables qui servent aussi de filtre (page des arrivées). */
+button.carte.filtre {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+button.carte.filtre:hover {
+  border-color: var(--couleur-primaire);
+}
+button.carte.filtre.actif {
+  border-color: var(--couleur-primaire);
+  background: var(--couleur-primaire-claire);
 }
