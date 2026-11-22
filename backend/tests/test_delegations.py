@@ -310,7 +310,8 @@ def test_liste_et_audit_des_delegations(scene, db):
 
 def test_delegables_limitees_aux_validations_du_dg():
     assert DELEGABLES == {"achats.valider", "stock.valider_ajustement", "stock.valider_sortie_exceptionnelle",
-                          "stock.valider_entree_directe", "finances.valider", "ventes.valider_engagement"}
+                          "stock.valider_entree_directe", "finances.valider", "ventes.valider_engagement",
+                          "production.valider", "doctor_rewinder.valider"}
     assert all(p.split(".")[1].startswith("valider") for p in DELEGABLES)
 
 

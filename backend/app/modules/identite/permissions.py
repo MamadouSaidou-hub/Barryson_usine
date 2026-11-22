@@ -89,6 +89,8 @@ _MATRICE: dict[str, frozenset[str]] = {
         "stock.valider_sortie_exceptionnelle",
         "stock.valider_entree_directe",
         "production.annuler",
+        "production.valider",
+        "doctor_rewinder.valider",
         "delegations.gerer",
         "achats.valider",
         "finances.valider",
@@ -98,7 +100,6 @@ _MATRICE: dict[str, frozenset[str]] = {
         "production.consulter", "doctor_rewinder.consulter", "stock.consulter",
         "referentiels.consulter", "modeles.consulter",
         "modeles.saisir", "production.saisir",
-        "production.valider", "doctor_rewinder.valider",
     }),
     "directeur_commercial": frozenset({
         "clients.consulter", "ventes.consulter", "stock.consulter",
@@ -135,6 +136,8 @@ DELEGABLES: frozenset[str] = frozenset({
     "stock.valider_entree_directe",
     "finances.valider",
     "ventes.valider_engagement",
+    "production.valider",
+    "doctor_rewinder.valider",
 })
 
 
@@ -147,6 +150,8 @@ LECTURE_IMPLICITE: dict[str, frozenset[str]] = {
     "stock.valider_entree_directe": frozenset({"stock.consulter", "referentiels.consulter"}),
     "finances.valider": frozenset({"finances.consulter"}),
     "ventes.valider_engagement": frozenset({"ventes.consulter", "clients.consulter"}),
+    "production.valider": frozenset({"production.consulter"}),
+    "doctor_rewinder.valider": frozenset({"doctor_rewinder.consulter", "stock.consulter"}),
 }
 
 

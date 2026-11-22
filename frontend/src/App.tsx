@@ -2,6 +2,12 @@ import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import { ROLES } from "./libelles";
 import { Arrivee } from "./pages/Arrivee";
+import { DoctorRewinder } from "./pages/DoctorRewinder";
+import { DoctorRewinderDetail } from "./pages/DoctorRewinderDetail";
+import { Production } from "./pages/Production";
+import { ProductionDetail } from "./pages/ProductionDetail";
+import { ProductionNouveau } from "./pages/ProductionNouveau";
+import { Catalogue } from "./pages/Catalogue";
 import { ChangerMotDePasse, ConfigurerDoubleFacteur, Connexion } from "./pages/Acces";
 import { CommandeDetail } from "./pages/CommandeDetail";
 import { CommandeNouvelle } from "./pages/CommandeNouvelle";
@@ -30,6 +36,14 @@ const MENU: { groupe: string; entrees: Entree[] }[] = [
     entrees: [
       { vers: "/commandes", libelle: "Commandes d'achat", droit: ["achats.consulter"] },
       { vers: "/receptions", libelle: "Arrivées à contrôler", droit: ["achats.consulter"] },
+      { vers: "/catalogue", libelle: "Catalogue fournisseur", droit: ["achats.consulter"] },
+    ],
+  },
+  {
+    groupe: "Production",
+    entrees: [
+      { vers: "/production", libelle: "Ordres de fabrication", droit: ["production.consulter"] },
+      { vers: "/doctor-rewinder", libelle: "Doctor Rewinder", droit: ["doctor_rewinder.consulter"] },
     ],
   },
   {
@@ -99,8 +113,14 @@ function Disposition() {
           <Route path="/commandes/nouvelle" element={<CommandeNouvelle />} />
           <Route path="/commandes/:id" element={<CommandeDetail />} />
           <Route path="/commandes/:id/arrivee" element={<Arrivee />} />
+          <Route path="/catalogue" element={<Catalogue />} />
           <Route path="/receptions" element={<Receptions />} />
           <Route path="/receptions/:id" element={<Controle />} />
+          <Route path="/production" element={<Production />} />
+          <Route path="/production/nouveau" element={<ProductionNouveau />} />
+          <Route path="/production/:id" element={<ProductionDetail />} />
+          <Route path="/doctor-rewinder" element={<DoctorRewinder />} />
+          <Route path="/doctor-rewinder/:id" element={<DoctorRewinderDetail />} />
           <Route path="/stock" element={<Stock />} />
           <Route path="/stock/lots" element={<Lots />} />
           <Route path="/stock/mouvements" element={<Mouvements />} />

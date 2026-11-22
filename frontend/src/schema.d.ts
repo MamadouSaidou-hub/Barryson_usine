@@ -902,7 +902,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Valider Matieres */
+        /**
+         * Valider Matieres
+         * @description Sortie des tubes. Normale : responsable stock. Avec derogation (stock insuffisant) : DG ou
+         *     delegataire, meme droit que les sorties exceptionnelles : sortir ce qui n'est pas en stock engage l'usine.
+         */
         post: operations["valider_matieres_api_ordres_fabrication__ordre_id__valider_matieres_post"];
         delete?: never;
         options?: never;
@@ -993,6 +997,114 @@ export interface paths {
         put?: never;
         /** Annuler */
         post: operations["annuler_api_ordres_fabrication__ordre_id__annuler_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/doctor-rewinder/indicateurs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Indicateurs */
+        get: operations["indicateurs_api_doctor_rewinder_indicateurs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/doctor-rewinder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister */
+        get: operations["lister_api_doctor_rewinder_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/doctor-rewinder/{encours_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lire */
+        get: operations["lire_api_doctor_rewinder__encours_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/doctor-rewinder/{encours_id}/traitement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Traiter
+         * @description Retour du Doctor Rewinder : pieces recuperees et pieces non recuperables (pertes definitives).
+         */
+        put: operations["traiter_api_doctor_rewinder__encours_id__traitement_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/doctor-rewinder/{encours_id}/valider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Valider
+         * @description Valide le traitement : seule cette validation fait entrer les pieces recuperees en stock.
+         */
+        post: operations["valider_api_doctor_rewinder__encours_id__valider_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/doctor-rewinder/{encours_id}/renvoyer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renvoyer */
+        post: operations["renvoyer_api_doctor_rewinder__encours_id__renvoyer_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1211,6 +1323,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalogue-fournisseur": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister Catalogue */
+        get: operations["lister_catalogue_api_catalogue_fournisseur_get"];
+        put?: never;
+        /** Creer Catalogue */
+        post: operations["creer_catalogue_api_catalogue_fournisseur_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalogue-fournisseur/{entree_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Modifier Catalogue */
+        patch: operations["modifier_catalogue_api_catalogue_fournisseur__entree_id__patch"];
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -1367,6 +1514,90 @@ export interface components {
              * @enum {string}
              */
             statut: "disponible" | "entamee_presente" | "epuisee";
+        };
+        /** CatalogueCreation */
+        CatalogueCreation: {
+            /**
+             * Fournisseur Id
+             * Format: uuid
+             */
+            fournisseur_id: string;
+            /**
+             * Article Id
+             * Format: uuid
+             */
+            article_id: string;
+            /** Code */
+            code: string;
+            /** Libelle */
+            libelle: string;
+            /** Couleur Finition */
+            couleur_finition?: ("jaune_transparent" | "transparent_clair" | "or_transparent" | "kaki_simple" | "kaki_imprime") | null;
+            /** Reference Couleur Fournisseur */
+            reference_couleur_fournisseur?: string | null;
+            /** Poids Net Type Kg */
+            poids_net_type_kg?: number | string | null;
+            /** Metrage Type M */
+            metrage_type_m?: number | string | null;
+            /** Note */
+            note?: string | null;
+        };
+        /** CatalogueModification */
+        CatalogueModification: {
+            /** Libelle */
+            libelle?: string | null;
+            /** Couleur Finition */
+            couleur_finition?: ("jaune_transparent" | "transparent_clair" | "or_transparent" | "kaki_simple" | "kaki_imprime") | null;
+            /** Reference Couleur Fournisseur */
+            reference_couleur_fournisseur?: string | null;
+            /** Poids Net Type Kg */
+            poids_net_type_kg?: number | string | null;
+            /** Metrage Type M */
+            metrage_type_m?: number | string | null;
+            /** Note */
+            note?: string | null;
+            /** Actif */
+            actif?: boolean | null;
+        };
+        /** CataloguePublic */
+        CataloguePublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Fournisseur Id
+             * Format: uuid
+             */
+            fournisseur_id: string;
+            /**
+             * Article Id
+             * Format: uuid
+             */
+            article_id: string;
+            /** Article Code */
+            article_code: string;
+            /** Article Nom */
+            article_nom: string;
+            /** Unite */
+            unite: string;
+            /** Code */
+            code: string;
+            /** Libelle */
+            libelle: string;
+            /** Couleur Finition */
+            couleur_finition: string | null;
+            /** Reference Couleur Fournisseur */
+            reference_couleur_fournisseur: string | null;
+            /** Poids Net Type Kg */
+            poids_net_type_kg: number | null;
+            /** Metrage Type M */
+            metrage_type_m: number | null;
+            /** Note */
+            note: string | null;
+            /** Actif */
+            actif: boolean;
         };
         /** ClientCreation */
         ClientCreation: {
@@ -1804,6 +2035,73 @@ export interface components {
             /** Actif */
             actif?: boolean | null;
         };
+        /** EncoursPublic */
+        EncoursPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Ordre Id
+             * Format: uuid
+             */
+            ordre_id: string;
+            /**
+             * Bobine Id
+             * Format: uuid
+             */
+            bobine_id: string;
+            /**
+             * Modele Id
+             * Format: uuid
+             */
+            modele_id: string;
+            /**
+             * Article Id
+             * Format: uuid
+             */
+            article_id: string;
+            /** Pieces Par Carton */
+            pieces_par_carton: number;
+            /** Metrage */
+            metrage: number;
+            /** Quantite Envoyee */
+            quantite_envoyee: number;
+            /**
+             * Date Envoi
+             * Format: date
+             */
+            date_envoi: string;
+            /**
+             * Statut
+             * @enum {string}
+             */
+            statut: "en_cours" | "a_valider" | "traite";
+            /** Quantite Recuperee */
+            quantite_recuperee: number | null;
+            /** Quantite Non Recuperable */
+            quantite_non_recuperable: number | null;
+            /** Commentaire */
+            commentaire: string | null;
+            /** Traite Par */
+            traite_par: string | null;
+            /** Date Traitement */
+            date_traitement: string | null;
+            /** Valide Par */
+            valide_par: string | null;
+            /** Valide Le */
+            valide_le: string | null;
+            /** Mouvement Id */
+            mouvement_id: string | null;
+            /** Pieces Reliquat */
+            pieces_reliquat: number | null;
+            /**
+             * Cree Le
+             * Format: date-time
+             */
+            cree_le: string;
+        };
         /**
          * EntreeAnnuaire
          * @description Nom et fonction seulement : de quoi afficher « validé par ... », rien de sensible.
@@ -2044,6 +2342,27 @@ export interface components {
             /** Lot Id */
             lot_id: string | null;
         };
+        /** Indicateurs */
+        Indicateurs: {
+            /** Encours Ouverts */
+            encours_ouverts: number;
+            /** Pieces En Cours */
+            pieces_en_cours: number;
+            /** A Valider */
+            a_valider: number;
+            /** Pieces Envoyees Traitees */
+            pieces_envoyees_traitees: number;
+            /** Pieces Recuperees */
+            pieces_recuperees: number;
+            /** Taux Recuperation */
+            taux_recuperation: number | null;
+            /** Delai Moyen Jours */
+            delai_moyen_jours: number | null;
+            /** Anciennete Max Jours */
+            anciennete_max_jours: number | null;
+            /** Plus Ancien Id */
+            plus_ancien_id: string | null;
+        };
         /** LargeurCreation */
         LargeurCreation: {
             /** Largeur Mm */
@@ -2099,6 +2418,8 @@ export interface components {
             prix_unitaire?: number | string | null;
             /** Couleur Finition */
             couleur_finition?: ("jaune_transparent" | "transparent_clair" | "or_transparent" | "kaki_simple" | "kaki_imprime") | null;
+            /** Catalogue Id */
+            catalogue_id?: string | null;
         };
         /** LigneCommandePublic */
         LigneCommandePublic: {
@@ -2126,6 +2447,16 @@ export interface components {
             prix_unitaire: number | null;
             /** Couleur Finition */
             couleur_finition: string | null;
+            /** Catalogue Id */
+            catalogue_id?: string | null;
+            /** Catalogue Libelle */
+            catalogue_libelle?: string | null;
+            /** Reference Couleur Fournisseur */
+            reference_couleur_fournisseur?: string | null;
+            /** Poids Net Type Kg */
+            poids_net_type_kg?: number | null;
+            /** Metrage Type M */
+            metrage_type_m?: number | null;
             /** Quantite Recue Acceptee */
             quantite_recue_acceptee: number;
             /** Solde */
@@ -2780,6 +3111,11 @@ export interface components {
              */
             cree_le: string;
         };
+        /** Renvoi */
+        Renvoi: {
+            /** Motif */
+            motif: string;
+        };
         /** ReponseSession */
         ReponseSession: {
             utilisateur: components["schemas"]["UtilisateurPublic"];
@@ -2903,6 +3239,20 @@ export interface components {
             sous_seuil_min: boolean;
             /** En Attente Validation */
             en_attente_validation: number;
+        };
+        /** SortieMatieres */
+        SortieMatieres: {
+            /** Derogation Motif */
+            derogation_motif?: string | null;
+        };
+        /** Traitement */
+        Traitement: {
+            /** Quantite Recuperee */
+            quantite_recuperee: number;
+            /** Quantite Non Recuperable */
+            quantite_non_recuperable: number;
+            /** Commentaire */
+            commentaire?: string | null;
         };
         /** TransitionPublic */
         TransitionPublic: {
@@ -5249,7 +5599,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SortieMatieres"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -5421,6 +5775,190 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrdreDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    indicateurs_api_doctor_rewinder_indicateurs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Indicateurs"];
+                };
+            };
+        };
+    };
+    lister_api_doctor_rewinder_get: {
+        parameters: {
+            query?: {
+                statut?: ("en_cours" | "a_valider" | "traite") | null;
+                ordre_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EncoursPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lire_api_doctor_rewinder__encours_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                encours_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EncoursPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    traiter_api_doctor_rewinder__encours_id__traitement_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                encours_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Traitement"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EncoursPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    valider_api_doctor_rewinder__encours_id__valider_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                encours_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EncoursPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    renvoyer_api_doctor_rewinder__encours_id__renvoyer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                encours_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Renvoi"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EncoursPublic"];
                 };
             };
             /** @description Validation Error */
@@ -5891,6 +6429,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReceptionDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lister_catalogue_api_catalogue_fournisseur_get: {
+        parameters: {
+            query?: {
+                fournisseur_id?: string | null;
+                actif?: boolean | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CataloguePublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    creer_catalogue_api_catalogue_fournisseur_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogueCreation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CataloguePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    modifier_catalogue_api_catalogue_fournisseur__entree_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogueModification"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CataloguePublic"];
                 };
             };
             /** @description Validation Error */

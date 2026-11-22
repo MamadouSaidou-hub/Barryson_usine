@@ -74,4 +74,23 @@ export const DROITS_DELEGABLES: Record<string, string> = {
   "stock.valider_entree_directe": "Valider les entrées directes de produits finis",
   "finances.valider": "Valider les dépenses et transferts",
   "ventes.valider_engagement": "Valider les engagements commerciaux",
+  "production.valider": "Valider les résultats de fabrication",
+  "doctor_rewinder.valider": "Valider le traitement Doctor Rewinder",
+};
+
+export const STATUTS_ENCOURS: Record<string, { libelle: string; ton: Ton }> = {
+  en_cours: { libelle: "Chez le Doctor Rewinder", ton: "info" },
+  a_valider: { libelle: "Traitement à valider", ton: "alerte" },
+  traite: { libelle: "Traité", ton: "ok" },
+};
+
+export const STATUTS_OF: Record<string, { libelle: string; ton: Ton }> = {
+  brouillon: { libelle: "Brouillon", ton: "neutre" },
+  soumis: { libelle: "Matières à sortir", ton: "alerte" },
+  matieres_validees: { libelle: "Prêt à démarrer", ton: "info" },
+  en_cours: { libelle: "En fabrication", ton: "info" },
+  resultat_saisi: { libelle: "Résultat à valider", ton: "alerte" },
+  resultat_valide: { libelle: "À clôturer", ton: "info" },
+  cloture: { libelle: "Clôturé", ton: "ok" },
+  annule: { libelle: "Annulé", ton: "danger" },
 };
