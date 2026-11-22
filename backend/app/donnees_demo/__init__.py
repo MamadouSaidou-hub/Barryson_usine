@@ -31,3 +31,29 @@ def lignes_packing_list_102() -> list[dict]:
             }
             for r in csv.DictReader(f, delimiter=";")
         ]
+
+
+def catalogue_depuis_packing_list_102() -> list[dict]:
+    """Une entree de catalogue par (finition, reference couleur du fournisseur) du conteneur.
+
+    Poids et metrage "types" = moyennes observees ; la note dit sur combien de bobines.
+    """
+    libelles = {"or_transparent": "or transparent", "jaune_transparent": "jaune transparent",
+                "transparent_clair": "transparent clair", "kaki_simple": "kaki simple"}
+    groupes: dict[tuple[str, str], list[dict]] = {}
+    with PACKING_LIST_102.open(encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f, delimiter=";"):
+            groupes.setdefault((FINITIONS[r["couleur"]], r["couleur_fournisseur"]), []).append(r)
+    entrees = []
+    for (finition, reference), bobines in groupes.items():
+        n = len(bobines)
+        entrees.append({
+            "code": f"JUMBO-{finition.split('_')[0].upper()}-{reference.replace(' ', '').upper()}",
+            "libelle": f"Bobine BOPP {libelles[finition]} — {reference}",
+            "couleur_finition": finition,
+            "reference_couleur_fournisseur": reference,
+            "poids_net_type_kg": f"{sum(float(b['poids_net_kg']) for b in bobines) / n:.2f}",
+            "metrage_type_m": f"{sum(float(b['metrage_m']) for b in bobines) / n:.2f}",
+            "note": f"Moyennes observées sur {n} bobines du premier conteneur.",
+        })
+    return sorted(entrees, key=lambda e: e["code"])

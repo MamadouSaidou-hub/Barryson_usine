@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints, model_validator
 
 from app.modules.achats.models import Devise, StatutCommande, StatutReception
 from app.modules.referentiel.schemas import Nombre
@@ -37,6 +37,8 @@ class LigneCommandeEntree(_Entree):
     quantite_commandee: Quantite
     prix_unitaire: Prix | None = None
     couleur_finition: CouleurFinition | None = None
+    # Produit du catalogue fournisseur : la finition en est deduite si elle n'est pas donnee.
+    catalogue_id: uuid.UUID | None = None
 
 
 Taux = Annotated[Decimal, Field(gt=0, le=10**9, max_digits=16, decimal_places=4)]
@@ -89,6 +91,11 @@ class LigneCommandePublic(BaseModel):
     quantite_commandee: Nombre
     prix_unitaire: Nombre | None
     couleur_finition: str | None
+    catalogue_id: uuid.UUID | None = None
+    catalogue_libelle: str | None = None
+    reference_couleur_fournisseur: str | None = None
+    poids_net_type_kg: Nombre | None = None
+    metrage_type_m: Nombre | None = None
     # Cumul des quantites ACCEPTEES au controle de conformite, et ce qu'il reste a recevoir.
     quantite_recue_acceptee: Nombre
     solde: Nombre
@@ -227,3 +234,59 @@ class ReceptionDetail(ReceptionPublic):
     # Avertissements a lire avant de controler (quantite superieure au solde, finition inattendue...).
     avertissements: list[str] = []
     avec_ecarts: bool = False
+
+
+# --- Catalogue fournisseur ------------------------------------------------------------------------
+
+# Mise en majuscules AVANT le controle du format : on tape "tube-45", le serveur range "TUBE-45".
+CodeCatalogue = Annotated[str, BeforeValidator(lambda v: v.strip().upper() if isinstance(v, str) else v),
+                          StringConstraints(pattern=r"^[A-Z0-9][A-Z0-9._-]{1,59}$")]
+Libelle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=200)]
+PoidsType = Annotated[Decimal, Field(gt=0, le=100_000, decimal_places=2)]
+MetrageType = Annotated[Decimal, Field(gt=0, le=1_000_000, decimal_places=2)]
+CouleurFournisseur = Annotated[str, StringConstraints(strip_whitespace=True, max_length=80)]
+
+
+class CatalogueCreation(_Entree):
+    fournisseur_id: uuid.UUID
+    article_id: uuid.UUID
+    code: CodeCatalogue
+    libelle: Libelle
+    couleur_finition: CouleurFinition | None = None
+    reference_couleur_fournisseur: CouleurFournisseur | None = None
+    poids_net_type_kg: PoidsType | None = None
+    metrage_type_m: MetrageType | None = None
+    note: Court | None = None
+
+
+class CatalogueModification(_Entree):
+    libelle: Libelle | None = None
+    couleur_finition: CouleurFinition | None = None
+    reference_couleur_fournisseur: CouleurFournisseur | None = None
+    poids_net_type_kg: PoidsType | None = None
+    metrage_type_m: MetrageType | None = None
+    note: Court | None = None
+    actif: bool | None = None
+
+    @model_validator(mode="after")
+    def _libelle_et_actif_non_effacables(self) -> "CatalogueModification":
+        if {"libelle", "actif"} & {c for c in self.model_fields_set if getattr(self, c) is None}:
+            raise ValueError("Le libellé et l'état actif ne peuvent pas être vidés.")
+        return self
+
+
+class CataloguePublic(_Sortie):
+    id: uuid.UUID
+    fournisseur_id: uuid.UUID
+    article_id: uuid.UUID
+    article_code: str
+    article_nom: str
+    unite: str
+    code: str
+    libelle: str
+    couleur_finition: str | None
+    reference_couleur_fournisseur: str | None
+    poids_net_type_kg: Nombre | None
+    metrage_type_m: Nombre | None
+    note: str | None
+    actif: bool

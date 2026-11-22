@@ -19,6 +19,7 @@ from app.core.numerotation import prochain_numero
 from app.core.transactions import transactionnel
 from app.modules.achats.models import (
     ETATS_ATTENTE_MARCHANDISE,
+    ArticleCatalogue,
     CommandeAchat,
     LigneCommandeAchat,
     LigneReception,
@@ -148,15 +149,23 @@ def quantites_acceptees(
 
 def vue_lignes_commande(db: Session, commande: CommandeAchat) -> list[dict[str, Any]]:
     acceptees = quantites_acceptees(db, commande.id)
+    lignes = lignes_de(db, commande.id)
     articles = {
         a.id: a
-        for a in db.scalars(
-            select(Article).where(Article.id.in_([ligne.article_id for ligne in lignes_de(db, commande.id)]))
+        for a in db.scalars(select(Article).where(Article.id.in_([ligne.article_id for ligne in lignes])))
+    }
+    catalogue = {
+        e.id: e
+        for e in db.scalars(
+            select(ArticleCatalogue).where(
+                ArticleCatalogue.id.in_([ligne.catalogue_id for ligne in lignes if ligne.catalogue_id])
+            )
         )
     }
     vue = []
-    for ligne in lignes_de(db, commande.id):
+    for ligne in lignes:
         article, recu = articles[ligne.article_id], acceptees.get(ligne.id, Decimal(0))
+        entree = catalogue.get(ligne.catalogue_id)
         vue.append(
             {
                 "id": ligne.id,
@@ -168,6 +177,11 @@ def vue_lignes_commande(db: Session, commande: CommandeAchat) -> list[dict[str, 
                 "quantite_commandee": ligne.quantite_commandee,
                 "prix_unitaire": ligne.prix_unitaire,
                 "couleur_finition": ligne.couleur_finition,
+                "catalogue_id": ligne.catalogue_id,
+                "catalogue_libelle": entree.libelle if entree else None,
+                "reference_couleur_fournisseur": entree.reference_couleur_fournisseur if entree else None,
+                "poids_net_type_kg": entree.poids_net_type_kg if entree else None,
+                "metrage_type_m": entree.metrage_type_m if entree else None,
                 "quantite_recue_acceptee": recu,
                 "solde": max(ligne.quantite_commandee - recu, Decimal(0)),
                 "montant": None
@@ -215,13 +229,17 @@ def _commit(db: Session, message: str = "Modification concurrente : réessayez."
         raise Conflit(message) from erreur
 
 
-def _verifier_lignes(db: Session, acteur: Utilisateur, lignes: list[dict[str, Any]]) -> list[Article]:
-    cles = Counter((ligne["article_id"], ligne.get("couleur_finition")) for ligne in lignes)
+def _verifier_lignes(db: Session, acteur: Utilisateur, lignes: list[dict[str, Any]],
+                     fournisseur_id: uuid.UUID) -> list[Article]:
+    for ligne in lignes:
+        _appliquer_catalogue(db, acteur, ligne, fournisseur_id)
+    cles = Counter((ligne["article_id"], ligne.get("couleur_finition"), ligne.get("catalogue_id"))
+                   for ligne in lignes)
     doublons = [cle for cle, nombre in cles.items() if nombre > 1]
     if doublons:
         raise DonneesInvalides(
-            "Une même référence (article et finition) ne peut figurer qu'une seule fois : "
-            "regroupez les quantités."
+            "Une même référence (article, finition et produit du catalogue) ne peut figurer qu'une "
+            "seule fois : regroupez les quantités."
         )
     articles = []
     for ligne in lignes:
@@ -236,6 +254,28 @@ def _verifier_lignes(db: Session, acteur: Utilisateur, lignes: list[dict[str, An
             raise DonneesInvalides(f"La finition ne s'applique qu'aux bobines (article {article.code}).")
         articles.append(article)
     return articles
+
+
+def _appliquer_catalogue(db: Session, acteur: Utilisateur, ligne: dict[str, Any],
+                         fournisseur_id: uuid.UUID) -> None:
+    """Une ligne tiree du catalogue doit venir du fournisseur de la commande et en reprendre la finition."""
+    if ligne.get("catalogue_id") is None:
+        return
+    try:
+        entree = _entree_catalogue(db, acteur, ligne["catalogue_id"])
+    except Introuvable as erreur:
+        raise DonneesInvalides("Produit du catalogue introuvable.") from erreur
+    if not entree.actif:
+        raise DonneesInvalides(f"Le produit « {entree.libelle} » du catalogue est désactivé.")
+    if entree.fournisseur_id != fournisseur_id:
+        raise DonneesInvalides(
+            f"Le produit « {entree.libelle} » n'est pas dans le catalogue de ce fournisseur.")
+    if entree.article_id != ligne["article_id"]:
+        raise DonneesInvalides(f"L'article de la ligne ne correspond pas au produit « {entree.libelle} ».")
+    if entree.couleur_finition is not None:
+        if ligne.get("couleur_finition") not in (None, entree.couleur_finition):
+            raise DonneesInvalides(f"La finition de la ligne contredit le produit « {entree.libelle} ».")
+        ligne["couleur_finition"] = entree.couleur_finition
 
 
 def _verifier_taux(devise: str, taux: Decimal | None) -> None:
@@ -265,7 +305,7 @@ def creer(db: Session, acteur: Utilisateur, donnees: dict[str, Any]) -> Commande
     _fournisseur_actif(db, acteur, donnees["fournisseur_id"])
     _verifier_taux(donnees["devise"], donnees.get("taux_change_gnf"))
     lignes = donnees.pop("lignes")
-    _verifier_lignes(db, acteur, lignes)
+    _verifier_lignes(db, acteur, lignes, donnees["fournisseur_id"])
     commande = CommandeAchat(
         entreprise_id=acteur.entreprise_id,
         numero=prochain_numero(db, acteur.entreprise_id, "BCA"),
@@ -298,11 +338,16 @@ def modifier(
     if changements.get("fournisseur_id"):
         _fournisseur_actif(db, acteur, changements["fournisseur_id"])
     lignes = changements.pop("lignes", None)
+    ancien_fournisseur = commande.fournisseur_id
     for champ, valeur in changements.items():
         setattr(commande, champ, valeur)
     _verifier_taux(commande.devise, commande.taux_change_gnf)
+    if lignes is None and commande.fournisseur_id != ancien_fournisseur and any(
+            ligne.catalogue_id for ligne in lignes_de(db, commande.id)):
+        raise DonneesInvalides(
+            "Des lignes viennent du catalogue de l'ancien fournisseur : renvoyez les lignes de la commande.")
     if lignes is not None:
-        _verifier_lignes(db, acteur, lignes)
+        _verifier_lignes(db, acteur, lignes, commande.fournisseur_id)
         for ancienne in lignes_de(db, commande.id):
             db.delete(ancienne)
         db.flush()
@@ -745,3 +790,60 @@ def _recalculer_statut_commande(db: Session, acteur: Utilisateur, commande: Comm
         return
     if vers != commande.statut:
         _passer(db, commande, acteur, ETATS_ATTENTE_MARCHANDISE, vers, "Marchandise acceptée au contrôle")
+
+
+# --- Catalogue fournisseur --------------------------------------------------------------------------
+
+
+def _vue_catalogue(entree: ArticleCatalogue, article: Article) -> dict[str, Any]:
+    return {**{c.name: getattr(entree, c.name) for c in ArticleCatalogue.__table__.columns},
+            "article_code": article.code, "article_nom": article.nom, "unite": article.unite_gestion}
+
+
+def lister_catalogue(db: Session, acteur: Utilisateur, *, fournisseur_id: uuid.UUID | None,
+                     actif: bool | None) -> list[dict[str, Any]]:
+    requete = (select(ArticleCatalogue, Article)
+               .join(Article, Article.id == ArticleCatalogue.article_id)
+               .where(ArticleCatalogue.entreprise_id == acteur.entreprise_id)
+               .order_by(ArticleCatalogue.libelle))
+    if fournisseur_id is not None:
+        requete = requete.where(ArticleCatalogue.fournisseur_id == fournisseur_id)
+    if actif is not None:
+        requete = requete.where(ArticleCatalogue.actif == actif)
+    return [_vue_catalogue(e, a) for e, a in db.execute(requete)]
+
+
+def _entree_catalogue(db: Session, acteur: Utilisateur, entree_id: uuid.UUID) -> ArticleCatalogue:
+    entree = db.scalar(select(ArticleCatalogue).where(
+        ArticleCatalogue.entreprise_id == acteur.entreprise_id, ArticleCatalogue.id == entree_id))
+    if entree is None:
+        raise Introuvable()
+    return entree
+
+
+def _enregistrer_catalogue(db: Session, entree: ArticleCatalogue) -> ArticleCatalogue:
+    db.add(entree)
+    try:
+        db.commit()
+    except IntegrityError as erreur:
+        db.rollback()
+        raise Conflit("Ce code existe déjà pour ce fournisseur.") from erreur
+    return entree
+
+
+def creer_catalogue(db: Session, acteur: Utilisateur, donnees: dict[str, Any]) -> dict[str, Any]:
+    _fournisseur_actif(db, acteur, donnees["fournisseur_id"])
+    article = referentiel._article_actif(db, acteur, donnees["article_id"], None, "Catalogue")
+    if article.niveau_stock == "produit_fini":
+        raise DonneesInvalides("Catalogue : un produit fini ne s'achète pas, il se fabrique.")
+    entree = _enregistrer_catalogue(db, ArticleCatalogue(entreprise_id=acteur.entreprise_id, **donnees))
+    return _vue_catalogue(entree, article)
+
+
+def modifier_catalogue(db: Session, acteur: Utilisateur, entree_id: uuid.UUID,
+                       changements: dict[str, Any]) -> dict[str, Any]:
+    entree = _entree_catalogue(db, acteur, entree_id)
+    for champ, valeur in changements.items():
+        setattr(entree, champ, valeur)
+    _enregistrer_catalogue(db, entree)
+    return _vue_catalogue(entree, db.get(Article, entree.article_id))

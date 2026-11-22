@@ -208,8 +208,26 @@ export function CommandeDetail() {
                 {c.lignes.map((l) => (
                   <tr key={l.id}>
                     <td>
-                      <strong>{l.article_code}</strong> — {l.article_nom}
-                      {l.couleur_finition && <div className="champ-aide">Finition : {FINITIONS[l.couleur_finition]}</div>}
+                      {l.catalogue_libelle ? (
+                        <strong>{l.catalogue_libelle}</strong>
+                      ) : (
+                        <>
+                          <strong>{l.article_code}</strong> — {l.article_nom}
+                        </>
+                      )}
+                      {l.couleur_finition && (
+                        <div className="champ-aide">
+                          Finition : {FINITIONS[l.couleur_finition]}
+                          {l.reference_couleur_fournisseur && <> · réf. fournisseur « {l.reference_couleur_fournisseur} »</>}
+                        </div>
+                      )}
+                      {(l.poids_net_type_kg || l.metrage_type_m) && (
+                        <div className="champ-aide">
+                          Environ {l.poids_net_type_kg ? `${nombre(l.poids_net_type_kg, 0)} kg` : ""}
+                          {l.poids_net_type_kg && l.metrage_type_m ? " et " : ""}
+                          {l.metrage_type_m ? `${nombre(l.metrage_type_m, 0)} m` : ""} par bobine
+                        </div>
+                      )}
                     </td>
                     <td className="droite">
                       {nombre(l.quantite_commandee, 1)} {l.unite}

@@ -14,16 +14,18 @@ from sqlalchemy import select
 from app.core.audit import maintenant
 from app.core.config import get_settings
 from app.core.db import SessionLocal
-from app.donnees_demo import lignes_packing_list_102
+from app.donnees_demo import catalogue_depuis_packing_list_102, lignes_packing_list_102
 from app.modules.achats import models as _modeles_achats  # noqa: F401  (enregistre toutes les tables)
+from app.modules.achats import service as achats
+from app.modules.achats.models import ArticleCatalogue
 from app.modules.identite import mots_de_passe
 from app.modules.identite.models import Entreprise, Utilisateur
 from app.modules.production import models as _modeles_production  # noqa: F401
 from app.modules.referentiel import service as referentiel
 from app.modules.referentiel.models import Article, Fournisseur, ModeleRuban, Moule
 from app.modules.stock import service as stock
+from app.modules.stock.models import ImportColisage, Lot, MouvementStock
 from app.modules.stock.schemas import ImportCreation
-from app.modules.stock.models import ImportColisage, Lot
 
 CONTENEUR_DEMO = "DEMO-CONTENEUR-102"
 MOT_DE_PASSE = "Lampe-Fleuve-Sable-81"
@@ -152,25 +154,63 @@ def main() -> int:
             )
 
         lot_charge = _charger_conteneur(db, entreprise.id)
+        catalogue = _charger_catalogue(db, entreprise.id)
+        tubes = _stock_initial_tubes(db, entreprise.id)
 
     print(f"Comptes créés : {', '.join(creees) or 'aucun (déjà présents)'}")
     print(f"Références chargées : {references}")
+    print(f"Catalogue fournisseur : {catalogue} produit(s) ajouté(s)")
+    print(f"Stock initial de tubes : {'5 000 tubes ajoutés' if tubes else 'déjà présent'}")
     print(f"Conteneur réel : {'102 bobines chargées en stock' if lot_charge else 'déjà présent'}")
     print(f"\nMot de passe de tous les comptes de démonstration : {MOT_DE_PASSE}")
     print("Le DG et l'administrateur configureront leur double authentification à la première connexion.")
     return 0
 
 
-def _charger_conteneur(db, entreprise_id) -> bool:
-    """Entre en stock le premier conteneur reel (102 bobines) par le chemin normal : import, puis reception."""
-    if db.scalar(select(Lot.id).where(Lot.entreprise_id == entreprise_id, Lot.conteneur_reference == CONTENEUR_DEMO)):
-        return False
+def _acteur_jumbo_fournisseur(db, entreprise_id):
+    """Le responsable stock de demo (a qui sont attribuees les ecritures), le jumbo et le fournisseur."""
     acteur = db.scalar(select(Utilisateur).where(Utilisateur.identifiant == "stock.demo"))
     db.info.update(acteur_id=acteur.id)
-    jumbo = db.scalar(select(Article).where(Article.entreprise_id == entreprise_id, Article.code == "JUMBO-BOPP"))
-    fournisseur = db.scalar(
-        select(Fournisseur).where(Fournisseur.entreprise_id == entreprise_id, Fournisseur.code == "CHINE-DEMO")
+    jumbo = db.scalar(
+        select(Article).where(Article.entreprise_id == entreprise_id, Article.code == "JUMBO-BOPP")
     )
+    fournisseur = db.scalar(
+        select(Fournisseur).where(
+            Fournisseur.entreprise_id == entreprise_id, Fournisseur.code == "CHINE-DEMO"
+        )
+    )
+    return acteur, jumbo, fournisseur
+
+
+MOTIF_TUBES = "Stock initial de tubes (démo)"
+
+
+def _stock_initial_tubes(db, entreprise_id) -> bool:
+    """5 000 tubes en stock : sans eux, la sortie des tubes d'un ordre est refusee (stock insuffisant)."""
+    tube = db.scalar(
+        select(Article).where(Article.entreprise_id == entreprise_id, Article.code == "TUBE-PAPIER-45")
+    )
+    deja = db.scalar(
+        select(MouvementStock.id).where(
+            MouvementStock.entreprise_id == entreprise_id,
+            MouvementStock.article_id == tube.id,
+            MouvementStock.motif == MOTIF_TUBES,
+        )
+    )
+    if deja:
+        return False
+    acteur, _, _ = _acteur_jumbo_fournisseur(db, entreprise_id)
+    stock.enregistrer_mouvement(db, acteur, tube, "entree", Decimal(5000), MOTIF_TUBES)
+    db.commit()
+    return True
+
+
+def _charger_conteneur(db, entreprise_id) -> bool:
+    """Entre en stock le premier conteneur reel (102 bobines) par le chemin normal."""
+    deja = select(Lot.id).where(Lot.entreprise_id == entreprise_id, Lot.conteneur_reference == CONTENEUR_DEMO)
+    if db.scalar(deja):
+        return False
+    acteur, jumbo, fournisseur = _acteur_jumbo_fournisseur(db, entreprise_id)
     # Reprise apres un echec : un brouillon deja cree pour ce conteneur est valide tel quel.
     importation = db.scalar(
         select(ImportColisage).where(
@@ -191,6 +231,21 @@ def _charger_conteneur(db, entreprise_id) -> bool:
         importation = stock.creer_import(db, acteur, donnees)
     stock.valider_import(db, acteur, importation.id)
     return True
+
+
+def _charger_catalogue(db, entreprise_id) -> int:
+    """Catalogue du fournisseur de demo, tire du conteneur reel. Ne recree jamais un code existant."""
+    acteur, jumbo, fournisseur = _acteur_jumbo_fournisseur(db, entreprise_id)
+    ajoutes = 0
+    for entree in catalogue_depuis_packing_list_102():
+        if db.scalar(select(ArticleCatalogue.id).where(
+                ArticleCatalogue.entreprise_id == entreprise_id,
+                ArticleCatalogue.fournisseur_id == fournisseur.id,
+                ArticleCatalogue.code == entree["code"])) is None:
+            lien = {"fournisseur_id": fournisseur.id, "article_id": jumbo.id}
+            achats.creer_catalogue(db, acteur, lien | entree)
+            ajoutes += 1
+    return ajoutes
 
 
 if __name__ == "__main__":

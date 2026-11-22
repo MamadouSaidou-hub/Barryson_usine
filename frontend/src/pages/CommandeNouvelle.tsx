@@ -2,13 +2,15 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { envoyer, lire, type S } from "../api";
 import { DEVISES, FINITIONS } from "../libelles";
-import { Alerte, Bouton, Carte, Champ, Chargement, Choix, Page, Saisie, Tableau, messageErreur, montant, useDonnees } from "../ui";
+import { Alerte, Badge, Bouton, Carte, Champ, Chargement, Choix, Page, Saisie, Tableau, messageErreur, montant, nombre, useDonnees } from "../ui";
 
 interface Ligne {
   article_id: string;
   quantite: string;
   prix: string;
   finition: string;
+  // Renseigne quand la ligne vient du catalogue du fournisseur : article et finition sont alors imposes.
+  catalogue_id?: string;
 }
 
 const LIGNE_VIDE: Ligne = { article_id: "", quantite: "", prix: "", finition: "" };
@@ -16,11 +18,12 @@ const LIGNE_VIDE: Ligne = { article_id: "", quantite: "", prix: "", finition: ""
 export function CommandeNouvelle() {
   const aller = useNavigate();
   const { donnees, erreur, chargement } = useDonnees(async () => {
-    const [articles, fournisseurs] = await Promise.all([
+    const [articles, fournisseurs, catalogue] = await Promise.all([
       lire<S["ArticlePublic"][]>("/api/articles?actif=true"),
       lire<S["FournisseurPublic"][]>("/api/fournisseurs?actif=true"),
+      lire<S["CataloguePublic"][]>("/api/catalogue-fournisseur?actif=true"),
     ]);
-    return { articles: articles.filter((a) => a.niveau_stock !== "produit_fini"), fournisseurs };
+    return { articles: articles.filter((a) => a.niveau_stock !== "produit_fini"), fournisseurs, catalogue };
   });
 
   const [fournisseur, setFournisseur] = useState("");
@@ -37,6 +40,26 @@ export function CommandeNouvelle() {
   const total = lignes.reduce((somme, l) => somme + (Number(l.quantite) || 0) * (Number(l.prix.replace(",", ".")) || 0), 0);
   const prixManquants = lignes.some((l) => l.article_id && !l.prix);
   const tauxNombre = Number(taux.replace(",", "."));
+
+  const produitsDuFournisseur = donnees?.catalogue.filter((e) => e.fournisseur_id === fournisseur) ?? [];
+  const catalogueParId = (id?: string) => donnees?.catalogue.find((e) => e.id === id);
+
+  function choisirFournisseur(id: string) {
+    setFournisseur(id);
+    // Les produits d'un catalogue n'ont de sens que chez leur fournisseur : on garde seulement les lignes libres.
+    setLignes((anciennes) => {
+      const libres = anciennes.filter((l) => !l.catalogue_id);
+      return libres.length > 0 ? libres : [{ ...LIGNE_VIDE }];
+    });
+  }
+
+  function ajouterDuCatalogue(e: S["CataloguePublic"]) {
+    const nouvelle: Ligne = { article_id: e.article_id, quantite: "", prix: "", finition: e.couleur_finition ?? "", catalogue_id: e.id };
+    setLignes((anciennes) => {
+      const vide = anciennes.length === 1 && !anciennes[0].article_id && !anciennes[0].quantite && !anciennes[0].prix;
+      return vide ? [nouvelle] : [...anciennes, nouvelle];
+    });
+  }
 
   function changer(i: number, champ: keyof Ligne, valeur: string) {
     setLignes((anciennes) =>
@@ -63,6 +86,7 @@ export function CommandeNouvelle() {
             quantite_commandee: l.quantite.replace(",", "."),
             prix_unitaire: l.prix ? l.prix.replace(",", ".") : null,
             couleur_finition: l.finition || null,
+            catalogue_id: l.catalogue_id ?? null,
           })),
       });
       aller(`/commandes/${commande.id}`);
@@ -83,7 +107,7 @@ export function CommandeNouvelle() {
               <div className="formulaire">
                 <div className="rangee">
                   <Champ etiquette="Fournisseur">
-                    <Choix value={fournisseur} onChange={(e) => setFournisseur(e.target.value)}>
+                    <Choix value={fournisseur} onChange={(e) => choisirFournisseur(e.target.value)}>
                       <option value="">— Choisir —</option>
                       {donnees.fournisseurs.map((f) => (
                         <option key={f.id} value={f.id}>
@@ -119,6 +143,42 @@ export function CommandeNouvelle() {
               </div>
             </Carte>
 
+            {fournisseur && (
+              <Carte titre="Catalogue du fournisseur">
+                {produitsDuFournisseur.length === 0 ? (
+                  <p className="champ-aide" style={{ margin: 0 }}>
+                    Aucun produit au catalogue de ce fournisseur : ajoutez des lignes libres ci-dessous.
+                  </p>
+                ) : (
+                  <Tableau colonnes={["Produit", "Finition", { texte: "Par bobine (environ)", droite: true }, ""]}>
+                    {produitsDuFournisseur.map((e) => {
+                      const dejaAjoute = lignes.some((l) => l.catalogue_id === e.id);
+                      return (
+                        <tr key={e.id}>
+                          <td>
+                            <strong>{e.libelle}</strong>
+                            {e.reference_couleur_fournisseur && (
+                              <div className="champ-aide">Référence fournisseur : {e.reference_couleur_fournisseur}</div>
+                            )}
+                          </td>
+                          <td>{e.couleur_finition ? <Badge>{FINITIONS[e.couleur_finition]}</Badge> : "—"}</td>
+                          <td className="droite">
+                            {e.poids_net_type_kg ? `${nombre(e.poids_net_type_kg, 0)} kg` : "—"}
+                            {e.metrage_type_m ? ` · ${nombre(e.metrage_type_m, 0)} m` : ""}
+                          </td>
+                          <td className="droite">
+                            <Bouton type="button" variante="secondaire" disabled={dejaAjoute} onClick={() => ajouterDuCatalogue(e)}>
+                              {dejaAjoute ? "Ajouté ✓" : "Ajouter"}
+                            </Bouton>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </Tableau>
+                )}
+              </Carte>
+            )}
+
             <Carte
               titre="Lignes de la commande"
               droite={
@@ -130,20 +190,30 @@ export function CommandeNouvelle() {
               <Tableau colonnes={["Article", "Finition (bobines)", { texte: "Quantité", droite: true }, { texte: `Prix unitaire (${devise})`, droite: true }, { texte: "Montant", droite: true }, ""]}>
                 {lignes.map((l, i) => {
                   const a = article(l.article_id);
+                  const produit = catalogueParId(l.catalogue_id);
                   return (
                     <tr key={i}>
                       <td style={{ minWidth: 230 }}>
-                        <Choix aria-label="Article" value={l.article_id} onChange={(e) => changer(i, "article_id", e.target.value)}>
-                          <option value="">— Choisir —</option>
-                          {donnees.articles.map((x) => (
-                            <option key={x.id} value={x.id}>
-                              {x.code} — {x.nom}
-                            </option>
-                          ))}
-                        </Choix>
+                        {produit ? (
+                          <>
+                            <strong>{produit.libelle}</strong>
+                            <div className="champ-aide">Du catalogue du fournisseur</div>
+                          </>
+                        ) : (
+                          <Choix aria-label="Article" value={l.article_id} onChange={(e) => changer(i, "article_id", e.target.value)}>
+                            <option value="">— Choisir —</option>
+                            {donnees.articles.map((x) => (
+                              <option key={x.id} value={x.id}>
+                                {x.code} — {x.nom}
+                              </option>
+                            ))}
+                          </Choix>
+                        )}
                       </td>
                       <td style={{ minWidth: 170 }}>
-                        {a?.unite_gestion === "rouleau" ? (
+                        {produit ? (
+                          produit.couleur_finition ? FINITIONS[produit.couleur_finition] : "—"
+                        ) : a?.unite_gestion === "rouleau" ? (
                           <Choix aria-label="Finition" value={l.finition} onChange={(e) => changer(i, "finition", e.target.value)}>
                             <option value="">Toutes</option>
                             {Object.entries(FINITIONS).map(([cle, libelle]) => (

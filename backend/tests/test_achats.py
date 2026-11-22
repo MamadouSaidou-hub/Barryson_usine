@@ -657,3 +657,131 @@ def test_le_lot_et_les_bobines_viennent_bien_du_controle(circuit, db):
     assert db.scalar(select(Lot)) is None and db.scalar(select(Bobine)) is None  # rien avant le controle
     importation = db.scalar(select(ImportColisage))
     assert importation.statut == "brouillon" and importation.rattache_reception is True
+
+
+# --- Catalogue fournisseur ------------------------------------------------------------------------
+
+
+def _entree_catalogue(base, code="JUMBO-OR-G01", **extra) -> dict:
+    return {"fournisseur_id": str(base["chine"].id), "article_id": str(base["jumbo"].id), "code": code,
+            "libelle": "Bobine BOPP or transparent — Golden01", "couleur_finition": "or_transparent",
+            "reference_couleur_fournisseur": "Golden01", "poids_net_type_kg": "251.67",
+            "metrage_type_m": "4006.75", **extra}
+
+
+@pytest.mark.parametrize("role", ROLES)
+def test_droits_du_catalogue_fournisseur(client, en_tant_que, base, role):
+    entetes = en_tant_que(role)
+    assert client.get("/api/catalogue-fournisseur", headers=entetes).status_code == (
+        200 if a_la_permission(role, "achats.consulter") else 403)
+    ecriture = client.post("/api/catalogue-fournisseur", headers=entetes, json=_entree_catalogue(base, f"C-{ROLES.index(role)}"))
+    assert ecriture.status_code == (201 if a_la_permission(role, "achats.saisir") else 403), role
+
+
+def test_catalogue_creation_lecture_modification_et_desactivation(client, en_tant_que, base):
+    entetes = en_tant_que("responsable_stock")
+    cree = client.post("/api/catalogue-fournisseur", headers=entetes, json=_entree_catalogue(base))
+    assert cree.status_code == 201
+    corps = cree.json()
+    assert (corps["article_code"], corps["unite"], corps["poids_net_type_kg"], corps["actif"]) == (
+        "JUMBO", "rouleau", 251.67, True)
+    # Doublon de code chez le meme fournisseur : refuse ; chez un autre fournisseur : autorise.
+    assert client.post("/api/catalogue-fournisseur", headers=entetes, json=_entree_catalogue(base)).status_code == 409
+    autre = _entree_catalogue(base) | {"fournisseur_id": str(base["autre"].id)}
+    assert client.post("/api/catalogue-fournisseur", headers=entetes, json=autre).status_code == 201
+    liste = client.get("/api/catalogue-fournisseur", headers=entetes,
+                       params={"fournisseur_id": str(base["chine"].id)}).json()
+    assert [e["code"] for e in liste] == ["JUMBO-OR-G01"]
+    # Desactivation : l'entree reste lisible, mais disparait des listes "actives".
+    maj = client.patch(f"/api/catalogue-fournisseur/{corps['id']}", headers=entetes, json={"actif": False})
+    assert maj.status_code == 200 and maj.json()["actif"] is False
+    assert client.get("/api/catalogue-fournisseur", headers=entetes,
+                      params={"fournisseur_id": str(base["chine"].id), "actif": True}).json() == []
+    assert client.patch(f"/api/catalogue-fournisseur/{corps['id']}", headers=entetes,
+                        json={"libelle": None}).status_code == 422
+
+
+def test_catalogue_range_le_code_en_majuscules(client, en_tant_que, base):
+    entetes = en_tant_que("responsable_stock")
+    reponse = client.post("/api/catalogue-fournisseur", headers=entetes,
+                          json=_entree_catalogue(base, "  tube-45.std ") | {"article_id": str(base["tube"].id),
+                                                                              "couleur_finition": None})
+    assert reponse.status_code == 201, reponse.text
+    assert reponse.json()["code"] == "TUBE-45.STD"
+    # Meme code, autre casse : c'est un doublon.
+    doublon = client.post("/api/catalogue-fournisseur", headers=entetes,
+                          json=_entree_catalogue(base, "Tube-45.Std") | {"article_id": str(base["tube"].id),
+                                                                         "couleur_finition": None})
+    assert doublon.status_code == 409
+
+
+def test_catalogue_refuse_les_entrees_incoherentes(client, en_tant_que, base):
+    entetes = en_tant_que("responsable_stock")
+    for extra, attendu in (
+        ({"article_id": str(base["produit"].id)}, 400),            # un produit fini ne s'achete pas
+        ({"couleur_finition": "rose_bonbon"}, 422),
+        ({"poids_net_type_kg": "-3"}, 422),
+        ({"fournisseur_id": str(uuid.uuid4())}, 400),
+        ({"champ_inconnu": 1}, 422),
+    ):
+        reponse = client.post("/api/catalogue-fournisseur", headers=entetes, json=_entree_catalogue(base) | extra)
+        assert reponse.status_code == attendu, (extra, reponse.status_code, reponse.text)
+
+
+def test_le_compte_applicatif_ne_peut_pas_supprimer_une_entree_du_catalogue(db, base, entreprise):
+    entree = achats.creer_catalogue(db, type("A", (), {"entreprise_id": entreprise.id, "id": None})(),
+                                    {k: uuid.UUID(v) if k.endswith("_id") else v
+                                     for k, v in _entree_catalogue(base).items()})
+    with pytest.raises(DBAPIError):
+        db.execute(text("DELETE FROM catalogue_fournisseur WHERE id = :i"), {"i": entree["id"]})
+    db.rollback()
+
+
+def _produit_catalogue(client, entetes, base, code, reference, **extra) -> dict:
+    corps = _entree_catalogue(base, code, reference_couleur_fournisseur=reference, **extra)
+    reponse = client.post("/api/catalogue-fournisseur", headers=entetes, json=corps)
+    assert reponse.status_code == 201, reponse.text
+    return reponse.json()
+
+
+def test_commande_preparee_depuis_le_catalogue(client, en_tant_que, base):
+    entetes = en_tant_que("responsable_stock")
+    g1 = _produit_catalogue(client, entetes, base, "OR-G01", "Golden01")
+    g3 = _produit_catalogue(client, entetes, base, "OR-G03", "Golden03")
+    # Deux references fournisseur de meme finition dans une meme commande : permis grace au catalogue.
+    lignes = [{"article_id": str(base["jumbo"].id), "quantite_commandee": 40, "prix_unitaire": 1450,
+               "catalogue_id": g1["id"]},
+              {"article_id": str(base["jumbo"].id), "quantite_commandee": 20, "catalogue_id": g3["id"]}]
+    reponse = client.post("/api/commandes-achat", headers=entetes, json=_commande(base, lignes))
+    assert reponse.status_code == 201, reponse.text
+    commande = client.get(f"/api/commandes-achat/{reponse.json()['id']}", headers=entetes).json()
+    vues = {ligne["reference_couleur_fournisseur"]: ligne for ligne in commande["lignes"]}
+    assert set(vues) == {"Golden01", "Golden03"}
+    # La finition est reprise du catalogue (non fournie dans la ligne) ; les caracteristiques types suivent.
+    assert vues["Golden01"]["couleur_finition"] == "or_transparent"
+    assert vues["Golden01"]["poids_net_type_kg"] == 251.67 and vues["Golden01"]["metrage_type_m"] == 4006.75
+    assert vues["Golden03"]["catalogue_libelle"].endswith("Golden01")  # libelle du fixture, commun aux deux
+    # Sans catalogue, la meme finition en double reste refusee.
+    sans = [{"article_id": str(base["jumbo"].id), "quantite_commandee": 1, "couleur_finition": "or_transparent"}] * 2
+    assert client.post("/api/commandes-achat", headers=entetes, json=_commande(base, sans)).status_code == 400
+    # Le meme produit du catalogue deux fois : refuse aussi.
+    double = [{"article_id": str(base["jumbo"].id), "quantite_commandee": 1, "catalogue_id": g1["id"]}] * 2
+    assert client.post("/api/commandes-achat", headers=entetes, json=_commande(base, double)).status_code == 400
+
+
+def test_ligne_de_catalogue_incoherente_refusee(client, en_tant_que, base):
+    entetes = en_tant_que("responsable_stock")
+    g1 = _produit_catalogue(client, entetes, base, "OR-G01", "Golden01")
+    ligne = {"article_id": str(base["jumbo"].id), "quantite_commandee": 5, "catalogue_id": g1["id"]}
+    cas = {
+        "finition contredite": ({**ligne, "couleur_finition": "kaki_simple"}, {}),
+        "autre article": ({**ligne, "article_id": str(base["tube"].id)}, {}),
+        "autre fournisseur": (ligne, {"fournisseur_id": str(base["autre"].id)}),
+        "catalogue inconnu": ({**ligne, "catalogue_id": str(uuid.uuid4())}, {}),
+    }
+    for nom, (cas_ligne, extra) in cas.items():
+        reponse = client.post("/api/commandes-achat", headers=entetes, json=_commande(base, [cas_ligne], **extra))
+        assert reponse.status_code == 400, (nom, reponse.status_code, reponse.text)
+    # Une entree desactivee ne se commande plus.
+    client.patch(f"/api/catalogue-fournisseur/{g1['id']}", headers=entetes, json={"actif": False})
+    assert client.post("/api/commandes-achat", headers=entetes, json=_commande(base, [ligne])).status_code == 400

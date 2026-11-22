@@ -111,6 +111,7 @@ class LigneCommandeAchat(Base):
             "commande_id",
             "article_id",
             "couleur_finition",
+            "catalogue_id",
             name="uq_lignes_commande_achat_article",
             postgresql_nulls_not_distinct=True,
         ),
@@ -130,6 +131,8 @@ class LigneCommandeAchat(Base):
     prix_unitaire: Mapped[Decimal | None] = mapped_column(Numeric(16, 4))
     # Pour les bobines : finition attendue, comparee a la packing list a la reception.
     couleur_finition: Mapped[str | None] = mapped_column(String(30))
+    # Produit du catalogue fournisseur dont la ligne est tiree (reference couleur, poids et metrage types).
+    catalogue_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("catalogue_fournisseur.id"))
 
 
 class TransitionCommande(Base):
@@ -202,3 +205,37 @@ class LigneReception(Base):
     motif_ecart: Mapped[str | None] = mapped_column(String(300))
     # Numeros des bobines refusees (colis endommage...) : elles n'entrent pas en stock.
     bobines_refusees: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
+
+
+class ArticleCatalogue(Audite, Base):
+    """Un produit que l'on sait commander a un fournisseur, avec ses caracteristiques.
+
+    Ex. : bobine BOPP or transparent, reference couleur Golden01, ~251 kg et ~4 000 m. Le catalogue
+    sert a preparer une commande en cochant des produits plutot qu'en les retapant ; il ne cree ni
+    stock ni obligation. Une entree ne se supprime pas : elle se desactive.
+    """
+
+    __tablename__ = "catalogue_fournisseur"
+    __table_args__ = (
+        UniqueConstraint("entreprise_id", "fournisseur_id", "code"),
+        CheckConstraint(f"couleur_finition IS NULL OR couleur_finition IN ({_liste(FINITIONS)})",
+                        name="finition_connue"),
+        CheckConstraint("poids_net_type_kg IS NULL OR poids_net_type_kg > 0", name="poids_positif"),
+        CheckConstraint("metrage_type_m IS NULL OR metrage_type_m > 0", name="metrage_positif"),
+    )
+
+    id: Mapped[uuid.UUID] = _id()
+    entreprise_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("entreprises.id"), index=True)
+    fournisseur_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("fournisseurs.id"))
+    article_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("articles.id"))
+    code: Mapped[str] = mapped_column(String(60))
+    libelle: Mapped[str] = mapped_column(String(200))
+    couleur_finition: Mapped[str | None] = mapped_column(String(30))
+    # Nom de la couleur chez le fournisseur (Golden01, Yellowish...) : ce qu'on lui demande par ecrit.
+    reference_couleur_fournisseur: Mapped[str | None] = mapped_column(String(80))
+    poids_net_type_kg: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    metrage_type_m: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    note: Mapped[str | None] = mapped_column(String(300))
+    actif: Mapped[bool] = mapped_column(default=True, server_default="true")
+    cree_le: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=maintenant, server_default=func.now())
